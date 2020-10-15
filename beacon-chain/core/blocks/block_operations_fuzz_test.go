@@ -10,6 +10,7 @@ import (
 	pb "github.com/prysmaticlabs/prysm/proto/beacon/p2p/v1"
 	"github.com/prysmaticlabs/prysm/shared/params"
 	"github.com/prysmaticlabs/prysm/shared/testutil/require"
+	"github.com/prysmaticlabs/prysm/shared/types"
 )
 
 func TestFuzzProcessAttestationNoVerify_10000(t *testing.T) {
@@ -431,7 +432,7 @@ func TestFuzzVerifyExit_10000(t *testing.T) {
 	ve := &eth.SignedVoluntaryExit{}
 	val := &stateTrie.ReadOnlyValidator{}
 	fork := &pb.Fork{}
-	var slot uint64
+	var slot types.Slot
 
 	for i := 0; i < 10000; i++ {
 		fuzzer.Fuzz(ve)

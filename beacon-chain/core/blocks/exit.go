@@ -11,6 +11,7 @@ import (
 	stateTrie "github.com/prysmaticlabs/prysm/beacon-chain/state"
 	pb "github.com/prysmaticlabs/prysm/proto/beacon/p2p/v1"
 	"github.com/prysmaticlabs/prysm/shared/params"
+	"github.com/prysmaticlabs/prysm/shared/types"
 )
 
 // ProcessVoluntaryExits is one of the operations performed
@@ -87,7 +88,9 @@ func ProcessVoluntaryExitsNoVerifySignature(
 			return nil, err
 		}
 		// Validate that fork and genesis root are valid.
-		_, err = helpers.Domain(beaconState.Fork(), exit.Exit.Epoch, params.BeaconConfig().DomainVoluntaryExit, beaconState.GenesisValidatorRoot())
+		_, err = helpers.Domain(beaconState.Fork(),
+			types.ToEpoch(exit.Exit.Epoch),
+			params.BeaconConfig().DomainVoluntaryExit, beaconState.GenesisValidatorRoot())
 		if err != nil {
 			return nil, err
 		}
@@ -118,7 +121,10 @@ func ProcessVoluntaryExitsNoVerifySignature(
 //    # Verify signature
 //    domain = get_domain(state, DOMAIN_VOLUNTARY_EXIT, exit.epoch)
 //    assert bls_verify(validator.pubkey, signing_root(exit), exit.signature, domain)
-func VerifyExitAndSignature(validator *stateTrie.ReadOnlyValidator, currentSlot uint64, fork *pb.Fork, signed *ethpb.SignedVoluntaryExit, genesisRoot []byte) error {
+func VerifyExitAndSignature(
+	validator *stateTrie.ReadOnlyValidator, currentSlot types.Slot, fork *pb.Fork,
+	signed *ethpb.SignedVoluntaryExit, genesisRoot []byte,
+) error {
 	if signed == nil || signed.Exit == nil {
 		return errors.New("nil exit")
 	}
@@ -127,7 +133,7 @@ func VerifyExitAndSignature(validator *stateTrie.ReadOnlyValidator, currentSlot 
 	if err := verifyExitConditions(validator, currentSlot, exit); err != nil {
 		return err
 	}
-	domain, err := helpers.Domain(fork, exit.Epoch, params.BeaconConfig().DomainVoluntaryExit, genesisRoot)
+	domain, err := helpers.Domain(fork, types.ToEpoch(exit.Epoch), params.BeaconConfig().DomainVoluntaryExit, genesisRoot)
 	if err != nil {
 		return err
 	}
@@ -154,7 +160,7 @@ func VerifyExitAndSignature(validator *stateTrie.ReadOnlyValidator, currentSlot 
 //    assert get_current_epoch(state) >= exit.epoch
 //    # Verify the validator has been active long enough
 //    assert get_current_epoch(state) >= validator.activation_epoch + SHARD_COMMITTEE_PERIOD
-func verifyExitConditions(validator *stateTrie.ReadOnlyValidator, currentSlot uint64, exit *ethpb.VoluntaryExit) error {
+func verifyExitConditions(validator *stateTrie.ReadOnlyValidator, currentSlot types.Slot, exit *ethpb.VoluntaryExit) error {
 	currentEpoch := helpers.SlotToEpoch(currentSlot)
 	// Verify the validator is active.
 	if !helpers.IsActiveValidatorUsingTrie(validator, currentEpoch) {
@@ -167,7 +173,7 @@ func verifyExitConditions(validator *stateTrie.ReadOnlyValidator, currentSlot ui
 			validator.ExitEpoch())
 	}
 	// Exits must specify an epoch when they become valid; they are not valid before then.
-	if currentEpoch < exit.Epoch {
+	if currentEpoch.Uint64() < exit.Epoch {
 		return fmt.Errorf("expected current epoch >= exit epoch, received %d < %d", currentEpoch, exit.Epoch)
 	}
 	// Verify the validator has been active long enough.

@@ -16,18 +16,19 @@ import (
 	"github.com/prysmaticlabs/prysm/shared/testutil"
 	"github.com/prysmaticlabs/prysm/shared/testutil/assert"
 	"github.com/prysmaticlabs/prysm/shared/testutil/require"
+	"github.com/prysmaticlabs/prysm/shared/types"
 )
 
 func TestProcessProposerSlashings_UnmatchedHeaderSlots(t *testing.T) {
 	testutil.ResetCache()
 	beaconState, _ := testutil.DeterministicGenesisState(t, 20)
-	currentSlot := uint64(0)
+	currentSlot := types.Slot(0)
 	slashings := []*ethpb.ProposerSlashing{
 		{
 			Header_1: &ethpb.SignedBeaconBlockHeader{
 				Header: &ethpb.BeaconBlockHeader{
 					ProposerIndex: 1,
-					Slot:          params.BeaconConfig().SlotsPerEpoch + 1,
+					Slot:          params.BeaconConfig().SlotsPerEpoch.Uint64() + 1,
 				},
 			},
 			Header_2: &ethpb.SignedBeaconBlockHeader{
@@ -54,7 +55,7 @@ func TestProcessProposerSlashings_UnmatchedHeaderSlots(t *testing.T) {
 func TestProcessProposerSlashings_SameHeaders(t *testing.T) {
 	testutil.ResetCache()
 	beaconState, _ := testutil.DeterministicGenesisState(t, 2)
-	currentSlot := uint64(0)
+	currentSlot := types.Slot(0)
 	slashings := []*ethpb.ProposerSlashing{
 		{
 			Header_1: &ethpb.SignedBeaconBlockHeader{
@@ -192,7 +193,7 @@ func TestVerifyProposerSlashing(t *testing.T) {
 	}
 
 	beaconState, sks := testutil.DeterministicGenesisState(t, 2)
-	currentSlot := uint64(0)
+	currentSlot := types.Slot(0)
 	require.NoError(t, beaconState.SetSlot(currentSlot))
 
 	tests := []struct {
@@ -207,7 +208,7 @@ func TestVerifyProposerSlashing(t *testing.T) {
 					Header_1: &ethpb.SignedBeaconBlockHeader{
 						Header: &ethpb.BeaconBlockHeader{
 							ProposerIndex: 1,
-							Slot:          currentSlot,
+							Slot:          currentSlot.Uint64(),
 							StateRoot:     bytesutil.PadTo([]byte{}, 32),
 							BodyRoot:      bytesutil.PadTo([]byte{}, 32),
 							ParentRoot:    bytesutil.PadTo([]byte{}, 32),
@@ -216,7 +217,7 @@ func TestVerifyProposerSlashing(t *testing.T) {
 					Header_2: &ethpb.SignedBeaconBlockHeader{
 						Header: &ethpb.BeaconBlockHeader{
 							ProposerIndex: 1,
-							Slot:          currentSlot,
+							Slot:          currentSlot.Uint64(),
 							StateRoot:     bytesutil.PadTo([]byte{}, 32),
 							BodyRoot:      bytesutil.PadTo([]byte{}, 32),
 							ParentRoot:    bytesutil.PadTo([]byte{}, 32),
@@ -288,7 +289,9 @@ func TestVerifyProposerSlashing(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			testutil.ResetCache()
 			sk := sks[tt.args.slashing.Header_1.Header.ProposerIndex]
-			d, err := helpers.Domain(tt.args.beaconState.Fork(), helpers.SlotToEpoch(tt.args.slashing.Header_1.Header.Slot), params.BeaconConfig().DomainBeaconProposer, tt.args.beaconState.GenesisValidatorRoot())
+			d, err := helpers.Domain(tt.args.beaconState.Fork(),
+				helpers.SlotToEpoch(types.ToSlot(tt.args.slashing.Header_1.Header.Slot)),
+				params.BeaconConfig().DomainBeaconProposer, tt.args.beaconState.GenesisValidatorRoot())
 			require.NoError(t, err)
 			if tt.args.slashing.Header_1.Signature == nil {
 				sr, err := helpers.ComputeSigningRoot(tt.args.slashing.Header_1.Header, d)

@@ -86,7 +86,7 @@ func ProcessBlockHeaderNoVerify(
 	if block == nil {
 		return nil, errors.New("nil block")
 	}
-	if beaconState.Slot() != block.Slot {
+	if beaconState.Slot().Uint64() != block.Slot {
 		return nil, fmt.Errorf("state slot: %d is different than block slot: %d", beaconState.Slot(), block.Slot)
 	}
 	idx, err := helpers.BeaconProposerIndex(beaconState)

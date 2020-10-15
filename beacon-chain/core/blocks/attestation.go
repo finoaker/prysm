@@ -14,6 +14,7 @@ import (
 	"github.com/prysmaticlabs/prysm/shared/bls"
 	"github.com/prysmaticlabs/prysm/shared/bytesutil"
 	"github.com/prysmaticlabs/prysm/shared/params"
+	"github.com/prysmaticlabs/prysm/shared/types"
 	"go.opencensus.io/trace"
 )
 
@@ -115,32 +116,33 @@ func ProcessAttestationNoVerifySignature(
 	}
 
 	currEpoch := helpers.SlotToEpoch(beaconState.Slot())
-	var prevEpoch uint64
+	var prevEpoch types.Epoch
 	if currEpoch == 0 {
 		prevEpoch = 0
 	} else {
 		prevEpoch = currEpoch - 1
 	}
-	data := att.Data
-	if data.Target.Epoch != prevEpoch && data.Target.Epoch != currEpoch {
+	targetEpoch := types.ToEpoch(att.Data.Target.Epoch)
+	if targetEpoch != prevEpoch && targetEpoch != currEpoch {
 		return nil, fmt.Errorf(
 			"expected target epoch (%d) to be the previous epoch (%d) or the current epoch (%d)",
-			data.Target.Epoch,
+			targetEpoch,
 			prevEpoch,
 			currEpoch,
 		)
 	}
-	if helpers.SlotToEpoch(data.Slot) != data.Target.Epoch {
-		return nil, fmt.Errorf("data slot is not in the same epoch as target %d != %d", helpers.SlotToEpoch(data.Slot), data.Target.Epoch)
+	attEpoch := helpers.SlotToEpoch(types.ToSlot(att.Data.Slot))
+	if attEpoch != targetEpoch {
+		return nil, fmt.Errorf("data slot is not in the same epoch as target %d != %d", attEpoch, targetEpoch)
 	}
 
-	s := att.Data.Slot
-	minInclusionCheck := s+params.BeaconConfig().MinAttestationInclusionDelay <= beaconState.Slot()
-	epochInclusionCheck := beaconState.Slot() <= s+params.BeaconConfig().SlotsPerEpoch
+	attSlot := types.ToSlot(att.Data.Slot)
+	minInclusionCheck := attSlot+params.BeaconConfig().MinAttestationInclusionDelay <= beaconState.Slot()
+	epochInclusionCheck := beaconState.Slot() <= attSlot+params.BeaconConfig().SlotsPerEpoch
 	if !minInclusionCheck {
 		return nil, fmt.Errorf(
 			"attestation slot %d + inclusion delay %d > state slot %d",
-			s,
+			attSlot,
 			params.BeaconConfig().MinAttestationInclusionDelay,
 			beaconState.Slot(),
 		)
@@ -149,11 +151,11 @@ func ProcessAttestationNoVerifySignature(
 		return nil, fmt.Errorf(
 			"state slot %d > attestation slot %d + SLOTS_PER_EPOCH %d",
 			beaconState.Slot(),
-			s,
+			attSlot,
 			params.BeaconConfig().SlotsPerEpoch,
 		)
 	}
-	activeValidatorCount, err := helpers.ActiveValidatorCount(beaconState, att.Data.Target.Epoch)
+	activeValidatorCount, err := helpers.ActiveValidatorCount(beaconState, targetEpoch)
 	if err != nil {
 		return nil, err
 	}
@@ -171,42 +173,43 @@ func ProcessAttestationNoVerifySignature(
 		return nil, err
 	}
 	pendingAtt := &pb.PendingAttestation{
-		Data:            data,
+		Data:            att.Data,
 		AggregationBits: att.AggregationBits,
-		InclusionDelay:  beaconState.Slot() - s,
+		InclusionDelay:  (beaconState.Slot() - attSlot).Uint64(),
 		ProposerIndex:   proposerIndex,
 	}
 
-	var ffgSourceEpoch uint64
+	var ffgSourceEpoch types.Epoch
 	var ffgSourceRoot []byte
-	var ffgTargetEpoch uint64
-	if data.Target.Epoch == currEpoch {
-		ffgSourceEpoch = beaconState.CurrentJustifiedCheckpoint().Epoch
+	var ffgTargetEpoch types.Epoch
+	if targetEpoch == currEpoch {
+		ffgSourceEpoch = types.ToEpoch(beaconState.CurrentJustifiedCheckpoint().Epoch)
 		ffgSourceRoot = beaconState.CurrentJustifiedCheckpoint().Root
 		ffgTargetEpoch = currEpoch
 		if err := beaconState.AppendCurrentEpochAttestations(pendingAtt); err != nil {
 			return nil, err
 		}
 	} else {
-		ffgSourceEpoch = beaconState.PreviousJustifiedCheckpoint().Epoch
+		ffgSourceEpoch = types.ToEpoch(beaconState.PreviousJustifiedCheckpoint().Epoch)
 		ffgSourceRoot = beaconState.PreviousJustifiedCheckpoint().Root
 		ffgTargetEpoch = prevEpoch
 		if err := beaconState.AppendPreviousEpochAttestations(pendingAtt); err != nil {
 			return nil, err
 		}
 	}
-	if data.Source.Epoch != ffgSourceEpoch {
-		return nil, fmt.Errorf("expected source epoch %d, received %d", ffgSourceEpoch, data.Source.Epoch)
+	sourceEpoch := types.ToEpoch(att.Data.Source.Epoch)
+	if sourceEpoch != ffgSourceEpoch {
+		return nil, fmt.Errorf("expected source epoch %d, received %d", ffgSourceEpoch, sourceEpoch)
 	}
-	if !bytes.Equal(data.Source.Root, ffgSourceRoot) {
-		return nil, fmt.Errorf("expected source root %#x, received %#x", ffgSourceRoot, data.Source.Root)
+	if !bytes.Equal(att.Data.Source.Root, ffgSourceRoot) {
+		return nil, fmt.Errorf("expected source root %#x, received %#x", ffgSourceRoot, att.Data.Source.Root)
 	}
-	if data.Target.Epoch != ffgTargetEpoch {
-		return nil, fmt.Errorf("expected target epoch %d, received %d", ffgTargetEpoch, data.Target.Epoch)
+	if targetEpoch != ffgTargetEpoch {
+		return nil, fmt.Errorf("expected target epoch %d, received %d", ffgTargetEpoch, targetEpoch)
 	}
 
 	// Verify attesting indices are correct.
-	committee, err := helpers.BeaconCommitteeFromState(beaconState, att.Data.Slot, att.Data.CommitteeIndex)
+	committee, err := helpers.BeaconCommitteeFromState(beaconState, attSlot, att.Data.CommitteeIndex)
 	if err != nil {
 		return nil, err
 	}
@@ -241,7 +244,7 @@ func VerifyAttestationsSignatures(ctx context.Context, beaconState *stateTrie.Be
 	var preForkAtts []*ethpb.Attestation
 	var postForkAtts []*ethpb.Attestation
 	for _, a := range atts {
-		if helpers.SlotToEpoch(a.Data.Slot) < fork.Epoch {
+		if helpers.SlotToEpoch(types.ToSlot(a.Data.Slot)) < types.ToEpoch(fork.Epoch) {
 			preForkAtts = append(preForkAtts, a)
 		} else {
 			postForkAtts = append(postForkAtts, a)
@@ -250,7 +253,7 @@ func VerifyAttestationsSignatures(ctx context.Context, beaconState *stateTrie.Be
 
 	// Check attestations from before the fork.
 	if fork.Epoch > 0 { // Check to prevent underflow.
-		prevDomain, err := helpers.Domain(fork, fork.Epoch-1, dt, gvr)
+		prevDomain, err := helpers.Domain(fork, types.ToEpoch(fork.Epoch-1), dt, gvr)
 		if err != nil {
 			return err
 		}
@@ -264,7 +267,7 @@ func VerifyAttestationsSignatures(ctx context.Context, beaconState *stateTrie.Be
 	}
 
 	// Then check attestations from after the fork.
-	currDomain, err := helpers.Domain(fork, fork.Epoch, dt, gvr)
+	currDomain, err := helpers.Domain(fork, types.ToEpoch(fork.Epoch), dt, gvr)
 	if err != nil {
 		return err
 	}
@@ -278,7 +281,7 @@ func VerifyAttestationSignature(ctx context.Context, beaconState *stateTrie.Beac
 	if att == nil || att.Data == nil || att.AggregationBits.Count() == 0 {
 		return fmt.Errorf("nil or missing attestation data: %v", att)
 	}
-	committee, err := helpers.BeaconCommitteeFromState(beaconState, att.Data.Slot, att.Data.CommitteeIndex)
+	committee, err := helpers.BeaconCommitteeFromState(beaconState, types.ToSlot(att.Data.Slot), att.Data.CommitteeIndex)
 	if err != nil {
 		return err
 	}
@@ -309,7 +312,9 @@ func VerifyIndexedAttestation(ctx context.Context, beaconState *stateTrie.Beacon
 	if err := attestationutil.IsValidAttestationIndices(ctx, indexedAtt); err != nil {
 		return err
 	}
-	domain, err := helpers.Domain(beaconState.Fork(), indexedAtt.Data.Target.Epoch, params.BeaconConfig().DomainBeaconAttester, beaconState.GenesisValidatorRoot())
+	domain, err := helpers.Domain(beaconState.Fork(),
+		types.ToEpoch(indexedAtt.Data.Target.Epoch),
+		params.BeaconConfig().DomainBeaconAttester, beaconState.GenesisValidatorRoot())
 	if err != nil {
 		return err
 	}
@@ -352,7 +357,7 @@ func VerifyAttSigUseCheckPt(ctx context.Context, c *pb.CheckPtInfo, att *ethpb.A
 		return fmt.Errorf("nil or missing attestation data: %v", att)
 	}
 	seed := bytesutil.ToBytes32(c.Seed)
-	committee, err := helpers.BeaconCommittee(c.ActiveIndices, seed, att.Data.Slot, att.Data.CommitteeIndex)
+	committee, err := helpers.BeaconCommittee(c.ActiveIndices, seed, types.ToSlot(att.Data.Slot), att.Data.CommitteeIndex)
 	if err != nil {
 		return err
 	}
@@ -360,7 +365,9 @@ func VerifyAttSigUseCheckPt(ctx context.Context, c *pb.CheckPtInfo, att *ethpb.A
 	if err := attestationutil.IsValidAttestationIndices(ctx, indexedAtt); err != nil {
 		return err
 	}
-	domain, err := helpers.Domain(c.Fork, indexedAtt.Data.Target.Epoch, params.BeaconConfig().DomainBeaconAttester, c.GenesisRoot)
+	domain, err := helpers.Domain(c.Fork,
+		types.ToEpoch(indexedAtt.Data.Target.Epoch),
+		params.BeaconConfig().DomainBeaconAttester, c.GenesisRoot)
 	if err != nil {
 		return err
 	}

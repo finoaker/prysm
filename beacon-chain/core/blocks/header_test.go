@@ -29,7 +29,7 @@ func TestProcessBlockHeader_ImproperBlockSlot(t *testing.T) {
 		validators[i] = &ethpb.Validator{
 			PublicKey:             make([]byte, 32),
 			WithdrawalCredentials: make([]byte, 32),
-			ExitEpoch:             params.BeaconConfig().FarFutureEpoch,
+			ExitEpoch:             params.BeaconConfig().FarFutureEpoch.Uint64(),
 			Slashed:               true,
 		}
 	}
@@ -106,7 +106,7 @@ func TestProcessBlockHeader_DifferentSlots(t *testing.T) {
 		validators[i] = &ethpb.Validator{
 			PublicKey:             make([]byte, 32),
 			WithdrawalCredentials: make([]byte, 32),
-			ExitEpoch:             params.BeaconConfig().FarFutureEpoch,
+			ExitEpoch:             params.BeaconConfig().FarFutureEpoch.Uint64(),
 			Slashed:               true,
 		}
 	}
@@ -152,7 +152,7 @@ func TestProcessBlockHeader_PreviousBlockRootNotSignedRoot(t *testing.T) {
 		validators[i] = &ethpb.Validator{
 			PublicKey:             make([]byte, 48),
 			WithdrawalCredentials: make([]byte, 32),
-			ExitEpoch:             params.BeaconConfig().FarFutureEpoch,
+			ExitEpoch:             params.BeaconConfig().FarFutureEpoch.Uint64(),
 			Slashed:               true,
 		}
 	}
@@ -188,7 +188,7 @@ func TestProcessBlockHeader_SlashedProposer(t *testing.T) {
 		validators[i] = &ethpb.Validator{
 			PublicKey:             make([]byte, 48),
 			WithdrawalCredentials: make([]byte, 32),
-			ExitEpoch:             params.BeaconConfig().FarFutureEpoch,
+			ExitEpoch:             params.BeaconConfig().FarFutureEpoch.Uint64(),
 			Slashed:               true,
 		}
 	}
@@ -227,7 +227,7 @@ func TestProcessBlockHeader_OK(t *testing.T) {
 		validators[i] = &ethpb.Validator{
 			PublicKey:             make([]byte, 32),
 			WithdrawalCredentials: make([]byte, 32),
-			ExitEpoch:             params.BeaconConfig().FarFutureEpoch,
+			ExitEpoch:             params.BeaconConfig().FarFutureEpoch.Uint64(),
 			Slashed:               true,
 		}
 	}
@@ -287,7 +287,7 @@ func TestBlockSignatureSet_OK(t *testing.T) {
 		validators[i] = &ethpb.Validator{
 			PublicKey:             make([]byte, 32),
 			WithdrawalCredentials: make([]byte, 32),
-			ExitEpoch:             params.BeaconConfig().FarFutureEpoch,
+			ExitEpoch:             params.BeaconConfig().FarFutureEpoch.Uint64(),
 			Slashed:               true,
 		}
 	}

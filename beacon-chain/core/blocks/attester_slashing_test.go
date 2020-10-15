@@ -121,7 +121,7 @@ func TestProcessAttesterSlashings_IndexedAttestationFailedToVerify(t *testing.T)
 func TestProcessAttesterSlashings_AppliesCorrectStatus(t *testing.T) {
 	beaconState, privKeys := testutil.DeterministicGenesisState(t, 100)
 	for _, vv := range beaconState.Validators() {
-		vv.WithdrawableEpoch = 1 * params.BeaconConfig().SlotsPerEpoch
+		vv.WithdrawableEpoch = 1 * params.BeaconConfig().SlotsPerEpoch.Uint64()
 	}
 
 	att1 := &ethpb.IndexedAttestation{

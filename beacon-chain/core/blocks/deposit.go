@@ -172,10 +172,10 @@ func ProcessDeposit(beaconState *stateTrie.BeaconState, deposit *ethpb.Deposit, 
 		if err := beaconState.AppendValidator(&ethpb.Validator{
 			PublicKey:                  pubKey,
 			WithdrawalCredentials:      deposit.Data.WithdrawalCredentials,
-			ActivationEligibilityEpoch: params.BeaconConfig().FarFutureEpoch,
-			ActivationEpoch:            params.BeaconConfig().FarFutureEpoch,
-			ExitEpoch:                  params.BeaconConfig().FarFutureEpoch,
-			WithdrawableEpoch:          params.BeaconConfig().FarFutureEpoch,
+			ActivationEligibilityEpoch: params.BeaconConfig().FarFutureEpoch.Uint64(),
+			ActivationEpoch:            params.BeaconConfig().FarFutureEpoch.Uint64(),
+			ExitEpoch:                  params.BeaconConfig().FarFutureEpoch.Uint64(),
+			WithdrawableEpoch:          params.BeaconConfig().FarFutureEpoch.Uint64(),
 			EffectiveBalance:           effectiveBalance,
 		}); err != nil {
 			return nil, err

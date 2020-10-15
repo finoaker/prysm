@@ -12,6 +12,7 @@ import (
 	"github.com/prysmaticlabs/prysm/shared/attestationutil"
 	"github.com/prysmaticlabs/prysm/shared/bls"
 	"github.com/prysmaticlabs/prysm/shared/params"
+	"github.com/prysmaticlabs/prysm/shared/types"
 )
 
 // retrieves the signature set from the raw data, public key,signature and domain provided.
@@ -114,7 +115,7 @@ func randaoSigningData(beaconState *stateTrie.BeaconState) ([]byte, []byte, []by
 
 	currentEpoch := helpers.SlotToEpoch(beaconState.Slot())
 	buf := make([]byte, 32)
-	binary.LittleEndian.PutUint64(buf, currentEpoch)
+	binary.LittleEndian.PutUint64(buf, currentEpoch.Uint64())
 
 	domain, err := helpers.Domain(beaconState.Fork(), currentEpoch, params.BeaconConfig().DomainRandao, beaconState.GenesisValidatorRoot())
 	if err != nil {
@@ -134,7 +135,7 @@ func createAttestationSignatureSet(ctx context.Context, beaconState *stateTrie.B
 	msgs := make([][32]byte, len(atts))
 	for i, a := range atts {
 		sigs[i] = a.Signature
-		c, err := helpers.BeaconCommitteeFromState(beaconState, a.Data.Slot, a.Data.CommitteeIndex)
+		c, err := helpers.BeaconCommitteeFromState(beaconState, types.ToSlot(a.Data.Slot), a.Data.CommitteeIndex)
 		if err != nil {
 			return nil, err
 		}
@@ -182,7 +183,7 @@ func AttestationSignatureSet(ctx context.Context, beaconState *stateTrie.BeaconS
 	var preForkAtts []*ethpb.Attestation
 	var postForkAtts []*ethpb.Attestation
 	for _, a := range atts {
-		if helpers.SlotToEpoch(a.Data.Slot) < fork.Epoch {
+		if helpers.SlotToEpoch(types.ToSlot(a.Data.Slot)).Uint64() < fork.Epoch {
 			preForkAtts = append(preForkAtts, a)
 		} else {
 			postForkAtts = append(postForkAtts, a)
@@ -192,7 +193,7 @@ func AttestationSignatureSet(ctx context.Context, beaconState *stateTrie.BeaconS
 
 	// Check attestations from before the fork.
 	if fork.Epoch > 0 { // Check to prevent underflow.
-		prevDomain, err := helpers.Domain(fork, fork.Epoch-1, dt, gvr)
+		prevDomain, err := helpers.Domain(fork, types.ToEpoch(fork.Epoch-1), dt, gvr)
 		if err != nil {
 			return nil, err
 		}
@@ -208,7 +209,7 @@ func AttestationSignatureSet(ctx context.Context, beaconState *stateTrie.BeaconS
 	}
 
 	// Then check attestations from after the fork.
-	currDomain, err := helpers.Domain(fork, fork.Epoch, dt, gvr)
+	currDomain, err := helpers.Domain(fork, types.ToEpoch(fork.Epoch), dt, gvr)
 	if err != nil {
 		return nil, err
 	}

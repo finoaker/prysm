@@ -10,6 +10,7 @@ import (
 	"github.com/prysmaticlabs/prysm/beacon-chain/core/helpers"
 	stateTrie "github.com/prysmaticlabs/prysm/beacon-chain/state"
 	"github.com/prysmaticlabs/prysm/shared/params"
+	"github.com/prysmaticlabs/prysm/shared/types"
 	"go.opencensus.io/trace"
 )
 
@@ -43,10 +44,10 @@ func New(ctx context.Context, state *stateTrie.BeaconState) ([]*Validator, *Bala
 			pVal.IsActivePrevEpoch = true
 			pBal.ActivePrevEpoch += val.EffectiveBalance()
 		}
-		// Set inclusion slot and inclusion distance to be max, they will be compared and replaced
-		// with the lower values
-		pVal.InclusionSlot = params.BeaconConfig().FarFutureEpoch
-		pVal.InclusionDistance = params.BeaconConfig().FarFutureEpoch
+		// Set inclusion slot and inclusion distance to be max, they will be compared and replaced with the lower values.
+		// Note: FarFutureEpoch is used as huge value, w/o defining another variable for FarFutureSlot. Hence the conversion.
+		pVal.InclusionSlot = types.ToSlot(params.BeaconConfig().FarFutureEpoch.Uint64())
+		pVal.InclusionDistance = types.ToSlot(params.BeaconConfig().FarFutureEpoch.Uint64())
 
 		pValidators[idx] = pVal
 		return nil

@@ -81,7 +81,7 @@ func ProcessJustificationAndFinalizationPreCompute(state *stateTrie.BeaconState,
 		if err != nil {
 			return nil, errors.Wrapf(err, "could not get block root for previous epoch %d", prevEpoch)
 		}
-		if err := state.SetCurrentJustifiedCheckpoint(&ethpb.Checkpoint{Epoch: prevEpoch, Root: blockRoot}); err != nil {
+		if err := state.SetCurrentJustifiedCheckpoint(&ethpb.Checkpoint{Epoch: prevEpoch.Uint64(), Root: blockRoot}); err != nil {
 			return nil, err
 		}
 		newBits := state.JustificationBits()
@@ -97,7 +97,7 @@ func ProcessJustificationAndFinalizationPreCompute(state *stateTrie.BeaconState,
 		if err != nil {
 			return nil, errors.Wrapf(err, "could not get block root for current epoch %d", prevEpoch)
 		}
-		if err := state.SetCurrentJustifiedCheckpoint(&ethpb.Checkpoint{Epoch: currentEpoch, Root: blockRoot}); err != nil {
+		if err := state.SetCurrentJustifiedCheckpoint(&ethpb.Checkpoint{Epoch: currentEpoch.Uint64(), Root: blockRoot}); err != nil {
 			return nil, err
 		}
 		newBits := state.JustificationBits()
@@ -111,28 +111,28 @@ func ProcessJustificationAndFinalizationPreCompute(state *stateTrie.BeaconState,
 	justification := state.JustificationBits().Bytes()[0]
 
 	// 2nd/3rd/4th (0b1110) most recent epochs are justified, the 2nd using the 4th as source.
-	if justification&0x0E == 0x0E && (oldPrevJustifiedCheckpoint.Epoch+3) == currentEpoch {
+	if justification&0x0E == 0x0E && (oldPrevJustifiedCheckpoint.Epoch+3) == currentEpoch.Uint64() {
 		if err := state.SetFinalizedCheckpoint(oldPrevJustifiedCheckpoint); err != nil {
 			return nil, err
 		}
 	}
 
 	// 2nd/3rd (0b0110) most recent epochs are justified, the 2nd using the 3rd as source.
-	if justification&0x06 == 0x06 && (oldPrevJustifiedCheckpoint.Epoch+2) == currentEpoch {
+	if justification&0x06 == 0x06 && (oldPrevJustifiedCheckpoint.Epoch+2) == currentEpoch.Uint64() {
 		if err := state.SetFinalizedCheckpoint(oldPrevJustifiedCheckpoint); err != nil {
 			return nil, err
 		}
 	}
 
 	// 1st/2nd/3rd (0b0111) most recent epochs are justified, the 1st using the 3rd as source.
-	if justification&0x07 == 0x07 && (oldCurrJustifiedCheckpoint.Epoch+2) == currentEpoch {
+	if justification&0x07 == 0x07 && (oldCurrJustifiedCheckpoint.Epoch+2) == currentEpoch.Uint64() {
 		if err := state.SetFinalizedCheckpoint(oldCurrJustifiedCheckpoint); err != nil {
 			return nil, err
 		}
 	}
 
 	// The 1st/2nd (0b0011) most recent epochs are justified, the 1st using the 2nd as source
-	if justification&0x03 == 0x03 && (oldCurrJustifiedCheckpoint.Epoch+1) == currentEpoch {
+	if justification&0x03 == 0x03 && (oldCurrJustifiedCheckpoint.Epoch+1) == currentEpoch.Uint64() {
 		if err := state.SetFinalizedCheckpoint(oldCurrJustifiedCheckpoint); err != nil {
 			return nil, err
 		}

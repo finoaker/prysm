@@ -17,6 +17,7 @@ import (
 	"github.com/prysmaticlabs/prysm/shared/attestationutil"
 	"github.com/prysmaticlabs/prysm/shared/mathutil"
 	"github.com/prysmaticlabs/prysm/shared/params"
+	"github.com/prysmaticlabs/prysm/shared/types"
 )
 
 // sortableIndices implements the Sort interface to sort newly activated validator indices
@@ -84,7 +85,7 @@ func ProcessRegistryUpdates(state *stateTrie.BeaconState) (*stateTrie.BeaconStat
 	for idx, validator := range vals {
 		// Process the validators for activation eligibility.
 		if helpers.IsEligibleForActivationQueue(validator) {
-			validator.ActivationEligibilityEpoch = activationEligibilityEpoch
+			validator.ActivationEligibilityEpoch = activationEligibilityEpoch.Uint64()
 			if err := state.UpdateValidatorAtIndex(uint64(idx), validator); err != nil {
 				return nil, err
 			}
@@ -134,7 +135,7 @@ func ProcessRegistryUpdates(state *stateTrie.BeaconState) (*stateTrie.BeaconStat
 		if err != nil {
 			return nil, err
 		}
-		validator.ActivationEpoch = activationExitEpoch
+		validator.ActivationEpoch = activationExitEpoch.Uint64()
 		if err := state.UpdateValidatorAtIndex(index, validator); err != nil {
 			return nil, err
 		}
@@ -176,7 +177,7 @@ func ProcessSlashings(state *stateTrie.BeaconState) (*stateTrie.BeaconState, err
 	increment := params.BeaconConfig().EffectiveBalanceIncrement
 	minSlashing := mathutil.Min(totalSlashing*params.BeaconConfig().ProportionalSlashingMultiplier, totalBalance)
 	err = state.ApplyToEveryValidator(func(idx int, val *ethpb.Validator) (bool, error) {
-		correctEpoch := (currentEpoch + exitLength/2) == val.WithdrawableEpoch
+		correctEpoch := (currentEpoch.Uint64() + exitLength.Uint64()/2) == val.WithdrawableEpoch
 		if val.Slashed && correctEpoch {
 			penaltyNumerator := val.EffectiveBalance / increment * minSlashing
 			penalty := penaltyNumerator / totalBalance * increment
@@ -276,20 +277,20 @@ func ProcessFinalUpdates(state *stateTrie.BeaconState) (*stateTrie.BeaconState, 
 	slashedExitLength := params.BeaconConfig().EpochsPerSlashingsVector
 	slashedEpoch := nextEpoch % slashedExitLength
 	slashings := state.Slashings()
-	if uint64(len(slashings)) != slashedExitLength {
+	if uint64(len(slashings)) != slashedExitLength.Uint64() {
 		return nil, fmt.Errorf(
 			"state slashing length %d different than EpochsPerHistoricalVector %d",
 			len(slashings),
 			slashedExitLength,
 		)
 	}
-	if err := state.UpdateSlashingsAtIndex(slashedEpoch /* index */, 0 /* value */); err != nil {
+	if err := state.UpdateSlashingsAtIndex(slashedEpoch.Uint64() /* index */, 0 /* value */); err != nil {
 		return nil, err
 	}
 
 	// Set RANDAO mix.
 	randaoMixLength := params.BeaconConfig().EpochsPerHistoricalVector
-	if uint64(state.RandaoMixesLength()) != randaoMixLength {
+	if uint64(state.RandaoMixesLength()) != randaoMixLength.Uint64() {
 		return nil, fmt.Errorf(
 			"state randao length %d different than EpochsPerHistoricalVector %d",
 			state.RandaoMixesLength(),
@@ -300,13 +301,13 @@ func ProcessFinalUpdates(state *stateTrie.BeaconState) (*stateTrie.BeaconState, 
 	if err != nil {
 		return nil, err
 	}
-	if err := state.UpdateRandaoMixesAtIndex(nextEpoch%randaoMixLength, mix); err != nil {
+	if err := state.UpdateRandaoMixesAtIndex(nextEpoch.Uint64()%randaoMixLength.Uint64(), mix); err != nil {
 		return nil, err
 	}
 
 	// Set historical root accumulator.
 	epochsPerHistoricalRoot := params.BeaconConfig().SlotsPerHistoricalRoot / params.BeaconConfig().SlotsPerEpoch
-	if nextEpoch%epochsPerHistoricalRoot == 0 {
+	if nextEpoch.Uint64()%epochsPerHistoricalRoot.Uint64() == 0 {
 		historicalBatch := &pb.HistoricalBatch{
 			BlockRoots: state.BlockRoots(),
 			StateRoots: state.StateRoots(),
@@ -345,7 +346,7 @@ func UnslashedAttestingIndices(state *stateTrie.BeaconState, atts []*pb.PendingA
 	seen := make(map[uint64]bool)
 
 	for _, att := range atts {
-		committee, err := helpers.BeaconCommitteeFromState(state, att.Data.Slot, att.Data.CommitteeIndex)
+		committee, err := helpers.BeaconCommitteeFromState(state, types.ToSlot(att.Data.Slot), att.Data.CommitteeIndex)
 		if err != nil {
 			return nil, err
 		}

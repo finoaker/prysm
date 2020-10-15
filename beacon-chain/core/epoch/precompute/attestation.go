@@ -11,6 +11,7 @@ import (
 	"github.com/prysmaticlabs/prysm/shared/attestationutil"
 	"github.com/prysmaticlabs/prysm/shared/params"
 	"github.com/prysmaticlabs/prysm/shared/traceutil"
+	"github.com/prysmaticlabs/prysm/shared/types"
 	"go.opencensus.io/trace"
 )
 
@@ -47,12 +48,12 @@ func ProcessAttestations(
 			return nil, nil, errors.Wrap(err, "could not check validator attested previous epoch")
 		}
 
-		committee, err := helpers.BeaconCommitteeFromState(state, a.Data.Slot, a.Data.CommitteeIndex)
+		committee, err := helpers.BeaconCommitteeFromState(state, types.ToSlot(a.Data.Slot), a.Data.CommitteeIndex)
 		if err != nil {
 			return nil, nil, err
 		}
 		indices := attestationutil.AttestingIndices(a.AggregationBits, committee)
-		vp = UpdateValidator(vp, v, indices, a, a.Data.Slot)
+		vp = UpdateValidator(vp, v, indices, a, types.ToSlot(a.Data.Slot))
 	}
 
 	pBal = UpdateBalance(vp, pBal)
@@ -66,7 +67,7 @@ func AttestedCurrentEpoch(s *stateTrie.BeaconState, a *pb.PendingAttestation) (b
 	currentEpoch := helpers.CurrentEpoch(s)
 	var votedCurrentEpoch, votedTarget bool
 	// Did validator vote current epoch.
-	if a.Data.Target.Epoch == currentEpoch {
+	if types.ToEpoch(a.Data.Target.Epoch) == currentEpoch {
 		votedCurrentEpoch = true
 		same, err := SameTarget(s, a, currentEpoch)
 		if err != nil {
@@ -84,7 +85,7 @@ func AttestedPrevEpoch(s *stateTrie.BeaconState, a *pb.PendingAttestation) (bool
 	prevEpoch := helpers.PrevEpoch(s)
 	var votedPrevEpoch, votedTarget, votedHead bool
 	// Did validator vote previous epoch.
-	if a.Data.Target.Epoch == prevEpoch {
+	if types.ToEpoch(a.Data.Target.Epoch) == prevEpoch {
 		votedPrevEpoch = true
 		same, err := SameTarget(s, a, prevEpoch)
 		if err != nil {
@@ -108,7 +109,7 @@ func AttestedPrevEpoch(s *stateTrie.BeaconState, a *pb.PendingAttestation) (bool
 }
 
 // SameTarget returns true if attestation `a` attested to the same target block in state.
-func SameTarget(state *stateTrie.BeaconState, a *pb.PendingAttestation, e uint64) (bool, error) {
+func SameTarget(state *stateTrie.BeaconState, a *pb.PendingAttestation, e types.Epoch) (bool, error) {
 	r, err := helpers.BlockRoot(state, e)
 	if err != nil {
 		return false, err
@@ -121,7 +122,7 @@ func SameTarget(state *stateTrie.BeaconState, a *pb.PendingAttestation, e uint64
 
 // SameHead returns true if attestation `a` attested to the same block by attestation slot in state.
 func SameHead(state *stateTrie.BeaconState, a *pb.PendingAttestation) (bool, error) {
-	r, err := helpers.BlockRootAtSlot(state, a.Data.Slot)
+	r, err := helpers.BlockRootAtSlot(state, types.ToSlot(a.Data.Slot))
 	if err != nil {
 		return false, err
 	}
@@ -132,8 +133,8 @@ func SameHead(state *stateTrie.BeaconState, a *pb.PendingAttestation) (bool, err
 }
 
 // UpdateValidator updates pre computed validator store.
-func UpdateValidator(vp []*Validator, record *Validator, indices []uint64, a *pb.PendingAttestation, aSlot uint64) []*Validator {
-	inclusionSlot := aSlot + a.InclusionDelay
+func UpdateValidator(vp []*Validator, record *Validator, indices []uint64, a *pb.PendingAttestation, aSlot types.Slot) []*Validator {
+	inclusionSlot := aSlot.Add(a.InclusionDelay)
 
 	for _, i := range indices {
 		if record.IsCurrentEpochAttester {
@@ -146,8 +147,8 @@ func UpdateValidator(vp []*Validator, record *Validator, indices []uint64, a *pb
 			vp[i].IsPrevEpochAttester = true
 			// Update attestation inclusion info if inclusion slot is lower than before
 			if inclusionSlot < vp[i].InclusionSlot {
-				vp[i].InclusionSlot = aSlot + a.InclusionDelay
-				vp[i].InclusionDistance = a.InclusionDelay
+				vp[i].InclusionSlot = aSlot.Add(a.InclusionDelay)
+				vp[i].InclusionDistance = types.ToSlot(a.InclusionDelay)
 				vp[i].ProposerIndex = a.ProposerIndex
 			}
 		}

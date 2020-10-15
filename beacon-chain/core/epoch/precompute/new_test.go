@@ -11,25 +11,26 @@ import (
 	"github.com/prysmaticlabs/prysm/shared/params"
 	"github.com/prysmaticlabs/prysm/shared/testutil/assert"
 	"github.com/prysmaticlabs/prysm/shared/testutil/require"
+	"github.com/prysmaticlabs/prysm/shared/types"
 )
 
 func TestNew(t *testing.T) {
 	ffe := params.BeaconConfig().FarFutureEpoch
 	s, err := beaconstate.InitializeFromProto(&pb.BeaconState{
-		Slot: params.BeaconConfig().SlotsPerEpoch,
+		Slot: params.BeaconConfig().SlotsPerEpoch.Uint64(),
 		// Validator 0 is slashed
 		// Validator 1 is withdrawable
 		// Validator 2 is active prev epoch and current epoch
 		// Validator 3 is active prev epoch
 		Validators: []*ethpb.Validator{
-			{Slashed: true, WithdrawableEpoch: ffe, EffectiveBalance: 100},
+			{Slashed: true, WithdrawableEpoch: ffe.Uint64(), EffectiveBalance: 100},
 			{EffectiveBalance: 100},
-			{WithdrawableEpoch: ffe, ExitEpoch: ffe, EffectiveBalance: 100},
-			{WithdrawableEpoch: ffe, ExitEpoch: 1, EffectiveBalance: 100},
+			{WithdrawableEpoch: ffe.Uint64(), ExitEpoch: ffe.Uint64(), EffectiveBalance: 100},
+			{WithdrawableEpoch: ffe.Uint64(), ExitEpoch: 1, EffectiveBalance: 100},
 		},
 	})
 	require.NoError(t, err)
-	e := params.BeaconConfig().FarFutureEpoch
+	e := types.ToSlot(params.BeaconConfig().FarFutureEpoch.Uint64())
 	v, b, err := precompute.New(context.Background(), s)
 	require.NoError(t, err)
 	assert.DeepEqual(t, &precompute.Validator{

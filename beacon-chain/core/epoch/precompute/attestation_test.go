@@ -13,10 +13,11 @@ import (
 	"github.com/prysmaticlabs/prysm/shared/testutil"
 	"github.com/prysmaticlabs/prysm/shared/testutil/assert"
 	"github.com/prysmaticlabs/prysm/shared/testutil/require"
+	"github.com/prysmaticlabs/prysm/shared/types"
 )
 
 func TestUpdateValidator_Works(t *testing.T) {
-	e := params.BeaconConfig().FarFutureEpoch
+	e := types.ToSlot(params.BeaconConfig().FarFutureEpoch.Uint64())
 	vp := []*precompute.Validator{{}, {InclusionSlot: e}, {}, {InclusionSlot: e}, {}, {InclusionSlot: e}}
 	record := &precompute.Validator{IsCurrentEpochAttester: true, IsCurrentEpochTargetAttester: true,
 		IsPrevEpochAttester: true, IsPrevEpochTargetAttester: true, IsPrevEpochHeadAttester: true}
@@ -33,7 +34,7 @@ func TestUpdateValidator_Works(t *testing.T) {
 }
 
 func TestUpdateValidator_InclusionOnlyCountsPrevEpoch(t *testing.T) {
-	e := params.BeaconConfig().FarFutureEpoch
+	e := types.ToSlot(params.BeaconConfig().FarFutureEpoch.Uint64())
 	vp := []*precompute.Validator{{InclusionSlot: e}}
 	record := &precompute.Validator{IsCurrentEpochAttester: true, IsCurrentEpochTargetAttester: true}
 	a := &pb.PendingAttestation{InclusionDelay: 1, ProposerIndex: 2}
@@ -181,7 +182,7 @@ func TestProcessAttestations(t *testing.T) {
 	pVals, _, err = precompute.ProcessAttestations(context.Background(), beaconState, pVals, &precompute.Balance{})
 	require.NoError(t, err)
 
-	committee, err := helpers.BeaconCommitteeFromState(beaconState, att1.Data.Slot, att1.Data.CommitteeIndex)
+	committee, err := helpers.BeaconCommitteeFromState(beaconState, types.ToSlot(att1.Data.Slot), att1.Data.CommitteeIndex)
 	require.NoError(t, err)
 	indices := attestationutil.AttestingIndices(att1.AggregationBits, committee)
 	for _, i := range indices {
@@ -189,7 +190,7 @@ func TestProcessAttestations(t *testing.T) {
 			t.Error("Not a prev epoch attester")
 		}
 	}
-	committee, err = helpers.BeaconCommitteeFromState(beaconState, att2.Data.Slot, att2.Data.CommitteeIndex)
+	committee, err = helpers.BeaconCommitteeFromState(beaconState, types.ToSlot(att2.Data.Slot), att2.Data.CommitteeIndex)
 	require.NoError(t, err)
 	indices = attestationutil.AttestingIndices(att2.AggregationBits, committee)
 	for _, i := range indices {

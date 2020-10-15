@@ -11,6 +11,7 @@ import (
 	"github.com/prysmaticlabs/prysm/shared/params"
 	"github.com/prysmaticlabs/prysm/shared/testutil/assert"
 	"github.com/prysmaticlabs/prysm/shared/testutil/require"
+	"github.com/prysmaticlabs/prysm/shared/types"
 )
 
 func TestProcessJustificationAndFinalizationPreCompute_ConsecutiveEpochs(t *testing.T) {
@@ -21,7 +22,7 @@ func TestProcessJustificationAndFinalizationPreCompute_ConsecutiveEpochs(t *test
 		blockRoots[i] = []byte{byte(i)}
 	}
 	base := &pb.BeaconState{
-		Slot: params.BeaconConfig().SlotsPerEpoch*2 + 1,
+		Slot: params.BeaconConfig().SlotsPerEpoch.Uint64()*2 + 1,
 		PreviousJustifiedCheckpoint: &ethpb.Checkpoint{
 			Epoch: 0,
 			Root:  params.BeaconConfig().ZeroHash[:],
@@ -32,14 +33,19 @@ func TestProcessJustificationAndFinalizationPreCompute_ConsecutiveEpochs(t *test
 		},
 		FinalizedCheckpoint: &ethpb.Checkpoint{Root: make([]byte, 32)},
 		JustificationBits:   bitfield.Bitvector4{0x0F}, // 0b1111
-		Validators:          []*ethpb.Validator{{ExitEpoch: e}, {ExitEpoch: e}, {ExitEpoch: e}, {ExitEpoch: e}},
-		Balances:            []uint64{a, a, a, a}, // validator total balance should be 128000000000
-		BlockRoots:          blockRoots,
+		Validators: []*ethpb.Validator{
+			{ExitEpoch: e.Uint64()},
+			{ExitEpoch: e.Uint64()},
+			{ExitEpoch: e.Uint64()},
+			{ExitEpoch: e.Uint64()},
+		},
+		Balances:   []uint64{a, a, a, a}, // validator total balance should be 128000000000
+		BlockRoots: blockRoots,
 	}
 	state, err := beaconstate.InitializeFromProto(base)
 	require.NoError(t, err)
 	attestedBalance := 4 * e * 3 / 2
-	b := &precompute.Balance{PrevEpochTargetAttested: attestedBalance}
+	b := &precompute.Balance{PrevEpochTargetAttested: attestedBalance.Uint64()}
 	newState, err := precompute.ProcessJustificationAndFinalizationPreCompute(state, b)
 	require.NoError(t, err)
 	rt := [32]byte{byte(64)}
@@ -47,7 +53,7 @@ func TestProcessJustificationAndFinalizationPreCompute_ConsecutiveEpochs(t *test
 	assert.Equal(t, uint64(2), newState.CurrentJustifiedCheckpoint().Epoch, "Unexpected justified epoch")
 	assert.Equal(t, uint64(0), newState.PreviousJustifiedCheckpoint().Epoch, "Unexpected previous justified epoch")
 	assert.DeepEqual(t, params.BeaconConfig().ZeroHash[:], newState.FinalizedCheckpoint().Root, "Unexpected finalized root")
-	assert.Equal(t, uint64(0), newState.FinalizedCheckpointEpoch(), "Unexpected finalized epoch")
+	assert.Equal(t, types.Epoch(0), newState.FinalizedCheckpointEpoch(), "Unexpected finalized epoch")
 }
 
 func TestProcessJustificationAndFinalizationPreCompute_JustifyCurrentEpoch(t *testing.T) {
@@ -58,7 +64,7 @@ func TestProcessJustificationAndFinalizationPreCompute_JustifyCurrentEpoch(t *te
 		blockRoots[i] = []byte{byte(i)}
 	}
 	base := &pb.BeaconState{
-		Slot: params.BeaconConfig().SlotsPerEpoch*2 + 1,
+		Slot: params.BeaconConfig().SlotsPerEpoch.Uint64()*2 + 1,
 		PreviousJustifiedCheckpoint: &ethpb.Checkpoint{
 			Epoch: 0,
 			Root:  params.BeaconConfig().ZeroHash[:],
@@ -69,14 +75,19 @@ func TestProcessJustificationAndFinalizationPreCompute_JustifyCurrentEpoch(t *te
 		},
 		FinalizedCheckpoint: &ethpb.Checkpoint{Root: make([]byte, 32)},
 		JustificationBits:   bitfield.Bitvector4{0x03}, // 0b0011
-		Validators:          []*ethpb.Validator{{ExitEpoch: e}, {ExitEpoch: e}, {ExitEpoch: e}, {ExitEpoch: e}},
-		Balances:            []uint64{a, a, a, a}, // validator total balance should be 128000000000
-		BlockRoots:          blockRoots,
+		Validators: []*ethpb.Validator{
+			{ExitEpoch: e.Uint64()},
+			{ExitEpoch: e.Uint64()},
+			{ExitEpoch: e.Uint64()},
+			{ExitEpoch: e.Uint64()},
+		},
+		Balances:   []uint64{a, a, a, a}, // validator total balance should be 128000000000
+		BlockRoots: blockRoots,
 	}
 	state, err := beaconstate.InitializeFromProto(base)
 	require.NoError(t, err)
 	attestedBalance := 4 * e * 3 / 2
-	b := &precompute.Balance{PrevEpochTargetAttested: attestedBalance}
+	b := &precompute.Balance{PrevEpochTargetAttested: attestedBalance.Uint64()}
 	newState, err := precompute.ProcessJustificationAndFinalizationPreCompute(state, b)
 	require.NoError(t, err)
 	rt := [32]byte{byte(64)}
@@ -84,7 +95,7 @@ func TestProcessJustificationAndFinalizationPreCompute_JustifyCurrentEpoch(t *te
 	assert.Equal(t, uint64(2), newState.CurrentJustifiedCheckpoint().Epoch, "Unexpected justified epoch")
 	assert.Equal(t, uint64(0), newState.PreviousJustifiedCheckpoint().Epoch, "Unexpected previous justified epoch")
 	assert.DeepEqual(t, params.BeaconConfig().ZeroHash[:], newState.FinalizedCheckpoint().Root)
-	assert.Equal(t, uint64(0), newState.FinalizedCheckpointEpoch(), "Unexpected finalized epoch")
+	assert.Equal(t, types.Epoch(0), newState.FinalizedCheckpointEpoch(), "Unexpected finalized epoch")
 }
 
 func TestProcessJustificationAndFinalizationPreCompute_JustifyPrevEpoch(t *testing.T) {
@@ -95,7 +106,7 @@ func TestProcessJustificationAndFinalizationPreCompute_JustifyPrevEpoch(t *testi
 		blockRoots[i] = []byte{byte(i)}
 	}
 	base := &pb.BeaconState{
-		Slot: params.BeaconConfig().SlotsPerEpoch*2 + 1,
+		Slot: params.BeaconConfig().SlotsPerEpoch.Uint64()*2 + 1,
 		PreviousJustifiedCheckpoint: &ethpb.Checkpoint{
 			Epoch: 0,
 			Root:  params.BeaconConfig().ZeroHash[:],
@@ -105,14 +116,19 @@ func TestProcessJustificationAndFinalizationPreCompute_JustifyPrevEpoch(t *testi
 			Root:  params.BeaconConfig().ZeroHash[:],
 		},
 		JustificationBits: bitfield.Bitvector4{0x03}, // 0b0011
-		Validators:        []*ethpb.Validator{{ExitEpoch: e}, {ExitEpoch: e}, {ExitEpoch: e}, {ExitEpoch: e}},
-		Balances:          []uint64{a, a, a, a}, // validator total balance should be 128000000000
-		BlockRoots:        blockRoots, FinalizedCheckpoint: &ethpb.Checkpoint{Root: make([]byte, 32)},
+		Validators: []*ethpb.Validator{
+			{ExitEpoch: e.Uint64()},
+			{ExitEpoch: e.Uint64()},
+			{ExitEpoch: e.Uint64()},
+			{ExitEpoch: e.Uint64()},
+		},
+		Balances:   []uint64{a, a, a, a}, // validator total balance should be 128000000000
+		BlockRoots: blockRoots, FinalizedCheckpoint: &ethpb.Checkpoint{Root: make([]byte, 32)},
 	}
 	state, err := beaconstate.InitializeFromProto(base)
 	require.NoError(t, err)
 	attestedBalance := 4 * e * 3 / 2
-	b := &precompute.Balance{PrevEpochTargetAttested: attestedBalance}
+	b := &precompute.Balance{PrevEpochTargetAttested: attestedBalance.Uint64()}
 	newState, err := precompute.ProcessJustificationAndFinalizationPreCompute(state, b)
 	require.NoError(t, err)
 	rt := [32]byte{byte(64)}
@@ -120,5 +136,5 @@ func TestProcessJustificationAndFinalizationPreCompute_JustifyPrevEpoch(t *testi
 	assert.Equal(t, uint64(0), newState.PreviousJustifiedCheckpoint().Epoch, "Unexpected previous justified epoch")
 	assert.Equal(t, uint64(2), newState.CurrentJustifiedCheckpoint().Epoch, "Unexpected justified epoch")
 	assert.DeepEqual(t, params.BeaconConfig().ZeroHash[:], newState.FinalizedCheckpoint().Root)
-	assert.Equal(t, uint64(0), newState.FinalizedCheckpointEpoch(), "Unexpected finalized epoch")
+	assert.Equal(t, types.Epoch(0), newState.FinalizedCheckpointEpoch(), "Unexpected finalized epoch")
 }

@@ -13,6 +13,7 @@ import (
 	stateTrie "github.com/prysmaticlabs/prysm/beacon-chain/state"
 	"github.com/prysmaticlabs/prysm/shared/mathutil"
 	"github.com/prysmaticlabs/prysm/shared/params"
+	"github.com/prysmaticlabs/prysm/shared/types"
 )
 
 // InitiateValidatorExit takes in validator index and updates
@@ -49,10 +50,10 @@ func InitiateValidatorExit(state *stateTrie.BeaconState, idx uint64) (*stateTrie
 		return nil, err
 	}
 
-	if validator.ExitEpoch != params.BeaconConfig().FarFutureEpoch {
+	if validator.ExitEpoch != params.BeaconConfig().FarFutureEpoch.Uint64() {
 		return state, nil
 	}
-	var exitEpochs []uint64
+	var exitEpochs []types.Epoch
 	for _, val := range readOnlyVals {
 		if val.ExitEpoch() != params.BeaconConfig().FarFutureEpoch {
 			exitEpochs = append(exitEpochs, val.ExitEpoch())
@@ -61,7 +62,7 @@ func InitiateValidatorExit(state *stateTrie.BeaconState, idx uint64) (*stateTrie
 	exitEpochs = append(exitEpochs, helpers.ActivationExitEpoch(helpers.CurrentEpoch(state)))
 
 	// Obtain the exit queue epoch as the maximum number in the exit epochs array.
-	exitQueueEpoch := uint64(0)
+	exitQueueEpoch := types.Epoch(0)
 	for _, i := range exitEpochs {
 		if exitQueueEpoch < i {
 			exitQueueEpoch = i
@@ -87,8 +88,8 @@ func InitiateValidatorExit(state *stateTrie.BeaconState, idx uint64) (*stateTrie
 	if exitQueueChurn >= churn {
 		exitQueueEpoch++
 	}
-	validator.ExitEpoch = exitQueueEpoch
-	validator.WithdrawableEpoch = exitQueueEpoch + params.BeaconConfig().MinValidatorWithdrawabilityDelay
+	validator.ExitEpoch = exitQueueEpoch.Uint64()
+	validator.WithdrawableEpoch = exitQueueEpoch.Add(params.BeaconConfig().MinValidatorWithdrawabilityDelay).Uint64()
 	if err := state.UpdateValidatorAtIndex(idx, validator); err != nil {
 		return nil, err
 	}
@@ -132,7 +133,8 @@ func SlashValidator(state *stateTrie.BeaconState, slashedIdx uint64) (*stateTrie
 		return nil, err
 	}
 	validator.Slashed = true
-	maxWithdrawableEpoch := mathutil.Max(validator.WithdrawableEpoch, currentEpoch+params.BeaconConfig().EpochsPerSlashingsVector)
+	maxWithdrawableEpoch := mathutil.Max(
+		validator.WithdrawableEpoch, currentEpoch.Uint64()+params.BeaconConfig().EpochsPerSlashingsVector.Uint64())
 	validator.WithdrawableEpoch = maxWithdrawableEpoch
 
 	if err := state.UpdateValidatorAtIndex(slashedIdx, validator); err != nil {
@@ -143,7 +145,7 @@ func SlashValidator(state *stateTrie.BeaconState, slashedIdx uint64) (*stateTrie
 	slashings := state.Slashings()
 	currentSlashing := slashings[currentEpoch%params.BeaconConfig().EpochsPerSlashingsVector]
 	if err := state.UpdateSlashingsAtIndex(
-		currentEpoch%params.BeaconConfig().EpochsPerSlashingsVector,
+		currentEpoch.Uint64()%params.BeaconConfig().EpochsPerSlashingsVector.Uint64(),
 		currentSlashing+validator.EffectiveBalance,
 	); err != nil {
 		return nil, err
@@ -184,11 +186,12 @@ func ActivatedValidatorIndices(epoch uint64, validators []*ethpb.Validator) []ui
 }
 
 // SlashedValidatorIndices determines the indices slashed during the given epoch.
-func SlashedValidatorIndices(epoch uint64, validators []*ethpb.Validator) []uint64 {
+func SlashedValidatorIndices(epoch types.Epoch, validators []*ethpb.Validator) []uint64 {
 	slashed := make([]uint64, 0)
 	for i := 0; i < len(validators); i++ {
 		val := validators[i]
-		maxWithdrawableEpoch := mathutil.Max(val.WithdrawableEpoch, epoch+params.BeaconConfig().EpochsPerSlashingsVector)
+		maxWithdrawableEpoch := mathutil.Max(
+			val.WithdrawableEpoch, epoch.Uint64()+params.BeaconConfig().EpochsPerSlashingsVector.Uint64())
 		if val.WithdrawableEpoch == maxWithdrawableEpoch && val.Slashed {
 			slashed = append(slashed, uint64(i))
 		}
@@ -197,12 +200,12 @@ func SlashedValidatorIndices(epoch uint64, validators []*ethpb.Validator) []uint
 }
 
 // ExitedValidatorIndices determines the indices exited during the current epoch.
-func ExitedValidatorIndices(epoch uint64, validators []*ethpb.Validator, activeValidatorCount uint64) ([]uint64, error) {
+func ExitedValidatorIndices(epoch types.Epoch, validators []*ethpb.Validator, activeValidatorCount uint64) ([]uint64, error) {
 	exited := make([]uint64, 0)
 	exitEpochs := make([]uint64, 0)
 	for i := 0; i < len(validators); i++ {
 		val := validators[i]
-		if val.ExitEpoch != params.BeaconConfig().FarFutureEpoch {
+		if val.ExitEpoch != params.BeaconConfig().FarFutureEpoch.Uint64() {
 			exitEpochs = append(exitEpochs, val.ExitEpoch)
 		}
 	}
@@ -229,7 +232,7 @@ func ExitedValidatorIndices(epoch uint64, validators []*ethpb.Validator, activeV
 	}
 	withdrawableEpoch := exitQueueEpoch + params.BeaconConfig().MinValidatorWithdrawabilityDelay
 	for i, val := range validators {
-		if val.ExitEpoch == epoch && val.WithdrawableEpoch == withdrawableEpoch &&
+		if val.ExitEpoch == epoch.Uint64() && val.WithdrawableEpoch == withdrawableEpoch &&
 			val.EffectiveBalance > params.BeaconConfig().EjectionBalance {
 			exited = append(exited, uint64(i))
 		}
@@ -243,7 +246,7 @@ func EjectedValidatorIndices(epoch uint64, validators []*ethpb.Validator, active
 	exitEpochs := make([]uint64, 0)
 	for i := 0; i < len(validators); i++ {
 		val := validators[i]
-		if val.ExitEpoch != params.BeaconConfig().FarFutureEpoch {
+		if val.ExitEpoch != params.BeaconConfig().FarFutureEpoch.Uint64() {
 			exitEpochs = append(exitEpochs, val.ExitEpoch)
 		}
 	}

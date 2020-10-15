@@ -10,6 +10,7 @@ import (
 	"github.com/prysmaticlabs/prysm/shared/params"
 	"github.com/prysmaticlabs/prysm/shared/testutil/assert"
 	"github.com/prysmaticlabs/prysm/shared/testutil/require"
+	"github.com/prysmaticlabs/prysm/shared/types"
 )
 
 func TestHasVoted_OK(t *testing.T) {
@@ -59,7 +60,7 @@ func TestInitiateValidatorExit_ProperExit(t *testing.T) {
 		{ExitEpoch: exitedEpoch},
 		{ExitEpoch: exitedEpoch + 1},
 		{ExitEpoch: exitedEpoch + 2},
-		{ExitEpoch: params.BeaconConfig().FarFutureEpoch},
+		{ExitEpoch: params.BeaconConfig().FarFutureEpoch.Uint64()},
 	}}
 	state, err := beaconstate.InitializeFromProto(base)
 	require.NoError(t, err)
@@ -78,7 +79,7 @@ func TestInitiateValidatorExit_ChurnOverflow(t *testing.T) {
 		{ExitEpoch: exitedEpoch + 2},
 		{ExitEpoch: exitedEpoch + 2},
 		{ExitEpoch: exitedEpoch + 2}, //over flow here
-		{ExitEpoch: params.BeaconConfig().FarFutureEpoch},
+		{ExitEpoch: params.BeaconConfig().FarFutureEpoch.Uint64()},
 	}}
 	state, err := beaconstate.InitializeFromProto(base)
 	require.NoError(t, err)
@@ -103,7 +104,7 @@ func TestSlashValidator_OK(t *testing.T) {
 	for i := 0; i < validatorCount; i++ {
 		registry = append(registry, &ethpb.Validator{
 			ActivationEpoch:  0,
-			ExitEpoch:        params.BeaconConfig().FarFutureEpoch,
+			ExitEpoch:        params.BeaconConfig().FarFutureEpoch.Uint64(),
 			EffectiveBalance: params.BeaconConfig().MaxEffectiveBalance,
 		})
 		balances = append(balances, params.BeaconConfig().MaxEffectiveBalance)
@@ -130,10 +131,11 @@ func TestSlashValidator_OK(t *testing.T) {
 	v, err := state.ValidatorAtIndex(slashedIdx)
 	require.NoError(t, err)
 	assert.Equal(t, true, v.Slashed, "Validator not slashed despite supposed to being slashed")
-	assert.Equal(t, helpers.CurrentEpoch(state)+params.BeaconConfig().EpochsPerSlashingsVector, v.WithdrawableEpoch, "Withdrawable epoch not the expected value")
+	assert.Equal(t, helpers.CurrentEpoch(state)+params.BeaconConfig().EpochsPerSlashingsVector,
+		types.ToEpoch(v.WithdrawableEpoch), "Withdrawable epoch not the expected value")
 
 	maxBalance := params.BeaconConfig().MaxEffectiveBalance
-	slashedBalance := state.Slashings()[state.Slot()%params.BeaconConfig().EpochsPerSlashingsVector]
+	slashedBalance := state.Slashings()[state.Slot().Uint64()%params.BeaconConfig().EpochsPerSlashingsVector.Uint64()]
 	assert.Equal(t, maxBalance, slashedBalance, "Slashed balance isnt the expected amount")
 
 	whistleblowerReward := slashedBalance / params.BeaconConfig().WhistleBlowerRewardQuotient
@@ -181,7 +183,7 @@ func TestActivatedValidatorIndices(t *testing.T) {
 				Slot: 0,
 				Validators: []*ethpb.Validator{
 					{
-						ActivationEpoch: helpers.ActivationExitEpoch(10),
+						ActivationEpoch: helpers.ActivationExitEpoch(10).Uint64(),
 					},
 				},
 			},
@@ -203,7 +205,7 @@ func TestActivatedValidatorIndices(t *testing.T) {
 	for _, tt := range tests {
 		s, err := beaconstate.InitializeFromProto(tt.state)
 		require.NoError(t, err)
-		activatedIndices := ActivatedValidatorIndices(helpers.CurrentEpoch(s), tt.state.Validators)
+		activatedIndices := ActivatedValidatorIndices(helpers.CurrentEpoch(s).Uint64(), tt.state.Validators)
 		assert.DeepEqual(t, tt.wanted, activatedIndices)
 	}
 }
@@ -218,15 +220,15 @@ func TestSlashedValidatorIndices(t *testing.T) {
 				Slot: 0,
 				Validators: []*ethpb.Validator{
 					{
-						WithdrawableEpoch: params.BeaconConfig().EpochsPerSlashingsVector,
+						WithdrawableEpoch: params.BeaconConfig().EpochsPerSlashingsVector.Uint64(),
 						Slashed:           true,
 					},
 					{
-						WithdrawableEpoch: params.BeaconConfig().EpochsPerSlashingsVector,
+						WithdrawableEpoch: params.BeaconConfig().EpochsPerSlashingsVector.Uint64(),
 						Slashed:           false,
 					},
 					{
-						WithdrawableEpoch: params.BeaconConfig().EpochsPerSlashingsVector,
+						WithdrawableEpoch: params.BeaconConfig().EpochsPerSlashingsVector.Uint64(),
 						Slashed:           true,
 					},
 				},
@@ -238,7 +240,7 @@ func TestSlashedValidatorIndices(t *testing.T) {
 				Slot: 0,
 				Validators: []*ethpb.Validator{
 					{
-						WithdrawableEpoch: params.BeaconConfig().EpochsPerSlashingsVector,
+						WithdrawableEpoch: params.BeaconConfig().EpochsPerSlashingsVector.Uint64(),
 					},
 				},
 			},
@@ -249,7 +251,7 @@ func TestSlashedValidatorIndices(t *testing.T) {
 				Slot: 0,
 				Validators: []*ethpb.Validator{
 					{
-						WithdrawableEpoch: params.BeaconConfig().EpochsPerSlashingsVector,
+						WithdrawableEpoch: params.BeaconConfig().EpochsPerSlashingsVector.Uint64(),
 						Slashed:           true,
 					},
 				},
@@ -272,7 +274,7 @@ func TestExitedValidatorIndices(t *testing.T) {
 	}{
 		{
 			state: &pb.BeaconState{
-				Slot: helpers.SlotToEpoch(1),
+				Slot: helpers.SlotToEpoch(1).Uint64(),
 				Validators: []*ethpb.Validator{
 					{
 						EffectiveBalance:  params.BeaconConfig().MaxEffectiveBalance,
@@ -295,11 +297,11 @@ func TestExitedValidatorIndices(t *testing.T) {
 		},
 		{
 			state: &pb.BeaconState{
-				Slot: helpers.SlotToEpoch(1),
+				Slot: helpers.SlotToEpoch(1).Uint64(),
 				Validators: []*ethpb.Validator{
 					{
 						EffectiveBalance:  params.BeaconConfig().MaxEffectiveBalance,
-						ExitEpoch:         params.BeaconConfig().FarFutureEpoch,
+						ExitEpoch:         params.BeaconConfig().FarFutureEpoch.Uint64(),
 						WithdrawableEpoch: params.BeaconConfig().MinValidatorWithdrawabilityDelay,
 					},
 				},
@@ -308,7 +310,7 @@ func TestExitedValidatorIndices(t *testing.T) {
 		},
 		{
 			state: &pb.BeaconState{
-				Slot: helpers.SlotToEpoch(1),
+				Slot: helpers.SlotToEpoch(1).Uint64(),
 				Validators: []*ethpb.Validator{
 					{
 						EffectiveBalance:  params.BeaconConfig().MaxEffectiveBalance,

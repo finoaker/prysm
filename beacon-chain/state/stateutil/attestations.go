@@ -255,7 +255,7 @@ func (h *stateRootHasher) epochAttestationsRoot(atts []*pb.PendingAttestation) (
 		hasher,
 		roots,
 		uint64(len(roots)),
-		params.BeaconConfig().MaxAttestations*params.BeaconConfig().SlotsPerEpoch,
+		params.BeaconConfig().MaxAttestations*params.BeaconConfig().SlotsPerEpoch.Uint64(),
 	)
 	if err != nil {
 		return [32]byte{}, errors.Wrap(err, "could not compute epoch attestations merkleization")

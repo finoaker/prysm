@@ -7,6 +7,7 @@ import (
 	fuzz "github.com/google/gofuzz"
 	ethpb "github.com/prysmaticlabs/ethereumapis/eth/v1alpha1"
 	stateTrie "github.com/prysmaticlabs/prysm/beacon-chain/state"
+	"github.com/prysmaticlabs/prysm/shared/types"
 )
 
 func TestFuzzExecuteStateTransition_1000(t *testing.T) {
@@ -66,7 +67,7 @@ func TestFuzzProcessSlots_1000(t *testing.T) {
 	defer SkipSlotCache.Enable()
 	ctx := context.Background()
 	state := &stateTrie.BeaconState{}
-	slot := uint64(0)
+	slot := types.Slot(0)
 	fuzzer := fuzz.NewWithSeed(0)
 	fuzzer.NilChance(0.1)
 	for i := 0; i < 1000; i++ {

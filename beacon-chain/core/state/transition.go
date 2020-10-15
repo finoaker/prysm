@@ -21,6 +21,7 @@ import (
 	"github.com/prysmaticlabs/prysm/shared/mathutil"
 	"github.com/prysmaticlabs/prysm/shared/params"
 	"github.com/prysmaticlabs/prysm/shared/traceutil"
+	"github.com/prysmaticlabs/prysm/shared/types"
 	"github.com/sirupsen/logrus"
 	"go.opencensus.io/trace"
 )
@@ -75,7 +76,7 @@ func ExecuteStateTransition(
 	defer span.End()
 	var err error
 	// Execute per slots transition.
-	state, err = ProcessSlots(ctx, state, signed.Block.Slot)
+	state, err = ProcessSlots(ctx, state, types.ToSlot(signed.Block.Slot))
 	if err != nil {
 		return nil, errors.Wrap(err, "could not process slot")
 	}
@@ -132,7 +133,7 @@ func ExecuteStateTransitionNoVerifyAnySig(
 	var err error
 
 	// Execute per slots transition.
-	state, err = ProcessSlots(ctx, state, signed.Block.Slot)
+	state, err = ProcessSlots(ctx, state, types.ToSlot(signed.Block.Slot))
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "could not process slot")
 	}
@@ -184,7 +185,7 @@ func CalculateStateRoot(
 	state = state.Copy()
 
 	// Execute per slots transition.
-	state, err := ProcessSlots(ctx, state, signed.Block.Slot)
+	state, err := ProcessSlots(ctx, state, types.ToSlot(signed.Block.Slot))
 	if err != nil {
 		return [32]byte{}, errors.Wrap(err, "could not process slot")
 	}
@@ -224,7 +225,7 @@ func ProcessSlot(ctx context.Context, state *stateTrie.BeaconState) (*stateTrie.
 		return nil, err
 	}
 	if err := state.UpdateStateRootAtIndex(
-		state.Slot()%params.BeaconConfig().SlotsPerHistoricalRoot,
+		state.Slot().Uint64()%params.BeaconConfig().SlotsPerHistoricalRoot.Uint64(),
 		prevStateRoot,
 	); err != nil {
 		return nil, err
@@ -246,7 +247,7 @@ func ProcessSlot(ctx context.Context, state *stateTrie.BeaconState) (*stateTrie.
 	}
 	// Cache the block root.
 	if err := state.UpdateBlockRootAtIndex(
-		state.Slot()%params.BeaconConfig().SlotsPerHistoricalRoot,
+		state.Slot().Uint64()%params.BeaconConfig().SlotsPerHistoricalRoot.Uint64(),
 		prevBlockRoot,
 	); err != nil {
 		return nil, err
@@ -266,7 +267,7 @@ func ProcessSlot(ctx context.Context, state *stateTrie.BeaconState) (*stateTrie.
 //            process_epoch(state)
 //        state.slot += 1
 //    ]
-func ProcessSlots(ctx context.Context, state *stateTrie.BeaconState, slot uint64) (*stateTrie.BeaconState, error) {
+func ProcessSlots(ctx context.Context, state *stateTrie.BeaconState, slot types.Slot) (*stateTrie.BeaconState, error) {
 	ctx, span := trace.StartSpan(ctx, "beacon-chain.ChainService.ProcessSlots")
 	defer span.End()
 	if state == nil {

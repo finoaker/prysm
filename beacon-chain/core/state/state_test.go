@@ -12,22 +12,23 @@ import (
 	"github.com/prysmaticlabs/prysm/shared/testutil"
 	"github.com/prysmaticlabs/prysm/shared/testutil/assert"
 	"github.com/prysmaticlabs/prysm/shared/testutil/require"
+	"github.com/prysmaticlabs/prysm/shared/types"
 )
 
 func TestGenesisBeaconState_OK(t *testing.T) {
-	genesisEpochNumber := uint64(0)
+	genesisEpoch := types.Epoch(0)
 
 	assert.DeepEqual(t, []byte{0, 0, 0, 0}, params.BeaconConfig().GenesisForkVersion, "GenesisSlot( should be {0,0,0,0} for these tests to pass")
 	genesisForkVersion := params.BeaconConfig().GenesisForkVersion
 
 	assert.Equal(t, [32]byte{}, params.BeaconConfig().ZeroHash, "ZeroHash should be all 0s for these tests to pass")
-	assert.Equal(t, uint64(65536), params.BeaconConfig().EpochsPerHistoricalVector, "EpochsPerHistoricalVector should be 8192 for these tests to pass")
+	assert.Equal(t, uint64(65536), params.BeaconConfig().EpochsPerHistoricalVector.Uint64(), "EpochsPerHistoricalVector should be 8192 for these tests to pass")
 
 	latestRandaoMixesLength := params.BeaconConfig().EpochsPerHistoricalVector
 	assert.Equal(t, uint64(16777216), params.BeaconConfig().HistoricalRootsLimit, "HistoricalRootsLimit should be 16777216 for these tests to pass")
 
 	depositsForChainStart := 100
-	assert.Equal(t, uint64(8192), params.BeaconConfig().EpochsPerSlashingsVector, "EpochsPerSlashingsVector should be 8192 for these tests to pass")
+	assert.Equal(t, uint64(8192), params.BeaconConfig().EpochsPerSlashingsVector.Uint64(), "EpochsPerSlashingsVector should be 8192 for these tests to pass")
 
 	genesisTime := uint64(99999)
 	deposits, _, err := testutil.DeterministicDepositsAndKeys(uint64(depositsForChainStart))
@@ -38,11 +39,11 @@ func TestGenesisBeaconState_OK(t *testing.T) {
 	require.NoError(t, err, "Could not execute GenesisBeaconState")
 
 	// Misc fields checks.
-	assert.Equal(t, uint64(0), newState.Slot(), "Slot was not correctly initialized")
+	assert.Equal(t, types.Slot(0), newState.Slot(), "Slot was not correctly initialized")
 	if !proto.Equal(newState.Fork(), &pb.Fork{
 		PreviousVersion: genesisForkVersion,
 		CurrentVersion:  genesisForkVersion,
-		Epoch:           genesisEpochNumber,
+		Epoch:           genesisEpoch.Uint64(),
 	}) {
 		t.Error("Fork was not correctly initialized")
 	}
@@ -58,15 +59,15 @@ func TestGenesisBeaconState_OK(t *testing.T) {
 	assert.Equal(t, depositsForChainStart, len(newState.Balances()), "Balances was not correctly initialized")
 
 	// Randomness and committees fields checks.
-	assert.Equal(t, latestRandaoMixesLength, uint64(len(newState.RandaoMixes())), "Length of RandaoMixes was not correctly initialized")
+	assert.Equal(t, latestRandaoMixesLength.Uint64(), uint64(len(newState.RandaoMixes())), "Length of RandaoMixes was not correctly initialized")
 	mix, err := newState.RandaoMixAtIndex(0)
 	require.NoError(t, err)
 	assert.DeepEqual(t, eth1Data.BlockHash, mix, "RandaoMixes was not correctly initialized")
 
 	// Finality fields checks.
-	assert.Equal(t, genesisEpochNumber, newState.PreviousJustifiedCheckpoint().Epoch, "PreviousJustifiedCheckpoint.Epoch was not correctly initialized")
-	assert.Equal(t, genesisEpochNumber, newState.CurrentJustifiedCheckpoint().Epoch, "JustifiedEpoch was not correctly initialized")
-	assert.Equal(t, genesisEpochNumber, newState.FinalizedCheckpointEpoch(), "FinalizedSlot was not correctly initialized")
+	assert.Equal(t, genesisEpoch.Uint64(), newState.PreviousJustifiedCheckpoint().Epoch, "PreviousJustifiedCheckpoint.Epoch was not correctly initialized")
+	assert.Equal(t, genesisEpoch.Uint64(), newState.CurrentJustifiedCheckpoint().Epoch, "JustifiedEpoch was not correctly initialized")
+	assert.Equal(t, genesisEpoch, newState.FinalizedCheckpointEpoch(), "FinalizedSlot was not correctly initialized")
 	assert.Equal(t, uint8(0x00), newState.JustificationBits()[0], "JustificationBits was not correctly initialized")
 
 	// Recent state checks.
@@ -104,7 +105,7 @@ func TestGenesisState_HashEquality(t *testing.T) {
 func TestGenesisState_InitializesLatestBlockHashes(t *testing.T) {
 	s, err := state.GenesisBeaconState(nil, 0, &ethpb.Eth1Data{})
 	require.NoError(t, err)
-	got, want := uint64(len(s.BlockRoots())), params.BeaconConfig().SlotsPerHistoricalRoot
+	got, want := uint64(len(s.BlockRoots())), params.BeaconConfig().SlotsPerHistoricalRoot.Uint64()
 	assert.Equal(t, want, got, "Wrong number of recent block hashes")
 
 	got = uint64(cap(s.BlockRoots()))

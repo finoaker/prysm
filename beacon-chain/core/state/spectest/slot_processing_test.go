@@ -12,6 +12,7 @@ import (
 	"github.com/prysmaticlabs/prysm/shared/params/spectest"
 	"github.com/prysmaticlabs/prysm/shared/testutil"
 	"github.com/prysmaticlabs/prysm/shared/testutil/require"
+	"github.com/prysmaticlabs/prysm/shared/types"
 	"gopkg.in/d4l3k/messagediff.v1"
 )
 
@@ -43,7 +44,8 @@ func runSlotProcessingTests(t *testing.T, config string) {
 			require.NoError(t, err)
 			postBeaconState := &pb.BeaconState{}
 			require.NoError(t, postBeaconState.UnmarshalSSZ(postBeaconStateFile), "Failed to unmarshal")
-			postState, err := state.ProcessSlots(context.Background(), beaconState, beaconState.Slot()+uint64(slotsCount))
+			slot := types.ToSlot(beaconState.Slot().Uint64() + uint64(slotsCount))
+			postState, err := state.ProcessSlots(context.Background(), beaconState, slot)
 			require.NoError(t, err)
 
 			if !proto.Equal(postState.CloneInnerState(), postBeaconState) {

@@ -10,12 +10,13 @@ import (
 	"github.com/prysmaticlabs/prysm/shared/params"
 	"github.com/prysmaticlabs/prysm/shared/testutil/assert"
 	"github.com/prysmaticlabs/prysm/shared/testutil/require"
+	"github.com/prysmaticlabs/prysm/shared/types"
 )
 
 func TestBlockRootAtSlot_CorrectBlockRoot(t *testing.T) {
 	var blockRoots [][]byte
 
-	for i := uint64(0); i < params.BeaconConfig().SlotsPerHistoricalRoot; i++ {
+	for i := uint64(0); i < params.BeaconConfig().SlotsPerHistoricalRoot.Uint64(); i++ {
 		blockRoots = append(blockRoots, []byte{byte(i)})
 	}
 	s := &pb.BeaconState{
@@ -23,8 +24,8 @@ func TestBlockRootAtSlot_CorrectBlockRoot(t *testing.T) {
 	}
 
 	tests := []struct {
-		slot         uint64
-		stateSlot    uint64
+		slot         types.Slot
+		stateSlot    types.Slot
 		expectedRoot [32]byte
 	}{
 		{
@@ -58,7 +59,7 @@ func TestBlockRootAtSlot_CorrectBlockRoot(t *testing.T) {
 	}
 	for i, tt := range tests {
 		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
-			s.Slot = tt.stateSlot
+			s.Slot = tt.stateSlot.Uint64()
 			state, err := beaconstate.InitializeFromProto(s)
 			require.NoError(t, err)
 			wantedSlot := tt.slot
@@ -72,7 +73,7 @@ func TestBlockRootAtSlot_CorrectBlockRoot(t *testing.T) {
 func TestBlockRootAtSlot_OutOfBounds(t *testing.T) {
 	var blockRoots [][]byte
 
-	for i := uint64(0); i < params.BeaconConfig().SlotsPerHistoricalRoot; i++ {
+	for i := uint64(0); i < params.BeaconConfig().SlotsPerHistoricalRoot.Uint64(); i++ {
 		blockRoots = append(blockRoots, []byte{byte(i)})
 	}
 	state := &pb.BeaconState{
@@ -80,8 +81,8 @@ func TestBlockRootAtSlot_OutOfBounds(t *testing.T) {
 	}
 
 	tests := []struct {
-		slot        uint64
-		stateSlot   uint64
+		slot        types.Slot
+		stateSlot   types.Slot
 		expectedErr string
 	}{
 		{
@@ -103,7 +104,7 @@ func TestBlockRootAtSlot_OutOfBounds(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		state.Slot = tt.stateSlot
+		state.Slot = tt.stateSlot.Uint64()
 		s, err := beaconstate.InitializeFromProto(state)
 		require.NoError(t, err)
 		_, err = helpers.BlockRootAtSlot(s, tt.slot)

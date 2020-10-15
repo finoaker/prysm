@@ -16,6 +16,7 @@ import (
 	"github.com/prysmaticlabs/prysm/shared/testutil/assert"
 	"github.com/prysmaticlabs/prysm/shared/testutil/require"
 	"github.com/prysmaticlabs/prysm/shared/timeutils"
+	"github.com/prysmaticlabs/prysm/shared/types"
 )
 
 func TestAttestation_IsAggregator(t *testing.T) {
@@ -91,7 +92,7 @@ func TestAttestation_ComputeSubnetForAttestation(t *testing.T) {
 		validators[i] = &ethpb.Validator{
 			PublicKey:             k,
 			WithdrawalCredentials: make([]byte, 32),
-			ExitEpoch:             params.BeaconConfig().FarFutureEpoch,
+			ExitEpoch:             params.BeaconConfig().FarFutureEpoch.Uint64(),
 		}
 	}
 
@@ -117,7 +118,7 @@ func TestAttestation_ComputeSubnetForAttestation(t *testing.T) {
 		XXX_unrecognized:     nil,
 		XXX_sizecache:        0,
 	}
-	valCount, err := helpers.ActiveValidatorCount(state, helpers.SlotToEpoch(att.Data.Slot))
+	valCount, err := helpers.ActiveValidatorCount(state, helpers.SlotToEpoch(types.ToSlot(att.Data.Slot)))
 	require.NoError(t, err)
 	sub := helpers.ComputeSubnetForAttestation(valCount, att)
 	assert.Equal(t, uint64(6), sub, "Did not get correct subnet for attestation")
@@ -129,7 +130,7 @@ func Test_ValidateAttestationTime(t *testing.T) {
 	}
 
 	type args struct {
-		attSlot     uint64
+		attSlot     types.Slot
 		genesisTime time.Time
 	}
 	tests := []struct {

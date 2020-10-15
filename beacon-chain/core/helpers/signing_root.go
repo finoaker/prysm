@@ -10,6 +10,7 @@ import (
 	"github.com/prysmaticlabs/prysm/shared/bls"
 	"github.com/prysmaticlabs/prysm/shared/bytesutil"
 	"github.com/prysmaticlabs/prysm/shared/params"
+	"github.com/prysmaticlabs/prysm/shared/types"
 )
 
 // ForkVersionByteLength length of fork version byte array.
@@ -23,7 +24,7 @@ const DomainByteLength = 4
 var ErrSigFailedToVerify = errors.New("signature did not verify")
 
 // ComputeDomainAndSign computes the domain and signing root and sign it using the passed in private key.
-func ComputeDomainAndSign(state *state.BeaconState, epoch uint64, obj interface{}, domain [4]byte, key bls.SecretKey) ([]byte, error) {
+func ComputeDomainAndSign(state *state.BeaconState, epoch types.Epoch, obj interface{}, domain [4]byte, key bls.SecretKey) ([]byte, error) {
 	d, err := Domain(state.Fork(), epoch, domain, state.GenesisValidatorRoot())
 	if err != nil {
 		return nil, err
@@ -73,7 +74,7 @@ func signingData(rootFunc func() ([32]byte, error), domain []byte) ([32]byte, er
 }
 
 // ComputeDomainVerifySigningRoot computes domain and verifies signing root of an object given the beacon state, validator index and signature.
-func ComputeDomainVerifySigningRoot(state *state.BeaconState, index, epoch uint64, obj interface{}, domain [4]byte, sig []byte) error {
+func ComputeDomainVerifySigningRoot(state *state.BeaconState, index uint64, epoch types.Epoch, obj interface{}, domain [4]byte, sig []byte) error {
 	v, err := state.ValidatorAtIndex(index)
 	if err != nil {
 		return err

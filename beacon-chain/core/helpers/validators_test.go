@@ -13,11 +13,12 @@ import (
 	"github.com/prysmaticlabs/prysm/shared/params"
 	"github.com/prysmaticlabs/prysm/shared/testutil/assert"
 	"github.com/prysmaticlabs/prysm/shared/testutil/require"
+	"github.com/prysmaticlabs/prysm/shared/types"
 )
 
 func TestIsActiveValidator_OK(t *testing.T) {
 	tests := []struct {
-		a uint64
+		a types.Epoch
 		b bool
 	}{
 		{a: 0, b: false},
@@ -34,7 +35,7 @@ func TestIsActiveValidator_OK(t *testing.T) {
 
 func TestIsActiveValidatorUsingTrie_OK(t *testing.T) {
 	tests := []struct {
-		a uint64
+		a types.Epoch
 		b bool
 	}{
 		{a: 0, b: false},
@@ -57,13 +58,13 @@ func TestIsSlashableValidator_OK(t *testing.T) {
 	tests := []struct {
 		name      string
 		validator *ethpb.Validator
-		epoch     uint64
+		epoch     types.Epoch
 		slashable bool
 	}{
 		{
 			name: "Unset withdrawable, slashable",
 			validator: &ethpb.Validator{
-				WithdrawableEpoch: params.BeaconConfig().FarFutureEpoch,
+				WithdrawableEpoch: params.BeaconConfig().FarFutureEpoch.Uint64(),
 			},
 			epoch:     0,
 			slashable: true,
@@ -80,7 +81,7 @@ func TestIsSlashableValidator_OK(t *testing.T) {
 			name: "inactive, not slashable",
 			validator: &ethpb.Validator{
 				ActivationEpoch:   5,
-				WithdrawableEpoch: params.BeaconConfig().FarFutureEpoch,
+				WithdrawableEpoch: params.BeaconConfig().FarFutureEpoch.Uint64(),
 			},
 			epoch:     2,
 			slashable: false,
@@ -97,7 +98,7 @@ func TestIsSlashableValidator_OK(t *testing.T) {
 			name: "slashed and withdrawable, not slashable",
 			validator: &ethpb.Validator{
 				Slashed:           true,
-				ExitEpoch:         params.BeaconConfig().FarFutureEpoch,
+				ExitEpoch:         params.BeaconConfig().FarFutureEpoch.Uint64(),
 				WithdrawableEpoch: 1,
 			},
 			epoch:     2,
@@ -107,8 +108,8 @@ func TestIsSlashableValidator_OK(t *testing.T) {
 			name: "slashed, not slashable",
 			validator: &ethpb.Validator{
 				Slashed:           true,
-				ExitEpoch:         params.BeaconConfig().FarFutureEpoch,
-				WithdrawableEpoch: params.BeaconConfig().FarFutureEpoch,
+				ExitEpoch:         params.BeaconConfig().FarFutureEpoch.Uint64(),
+				WithdrawableEpoch: params.BeaconConfig().FarFutureEpoch.Uint64(),
 			},
 			epoch:     2,
 			slashable: false,
@@ -118,8 +119,8 @@ func TestIsSlashableValidator_OK(t *testing.T) {
 			validator: &ethpb.Validator{
 				Slashed:           true,
 				ActivationEpoch:   4,
-				ExitEpoch:         params.BeaconConfig().FarFutureEpoch,
-				WithdrawableEpoch: params.BeaconConfig().FarFutureEpoch,
+				ExitEpoch:         params.BeaconConfig().FarFutureEpoch.Uint64(),
+				WithdrawableEpoch: params.BeaconConfig().FarFutureEpoch.Uint64(),
 			},
 			epoch:     2,
 			slashable: false,
@@ -128,8 +129,9 @@ func TestIsSlashableValidator_OK(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			slashableValidator := IsSlashableValidator(test.validator.ActivationEpoch,
-				test.validator.WithdrawableEpoch, test.validator.Slashed, test.epoch)
+			activationEpoch := types.ToEpoch(test.validator.ActivationEpoch)
+			withdrawableEpoch := types.ToEpoch(test.validator.WithdrawableEpoch)
+			slashableValidator := IsSlashableValidator(activationEpoch, withdrawableEpoch, test.validator.Slashed, test.epoch)
 			assert.Equal(t, test.slashable, slashableValidator, "Expected active validator slashable to be %t", test.slashable)
 		})
 	}
@@ -139,13 +141,13 @@ func TestIsSlashableValidatorUsingTrie_OK(t *testing.T) {
 	tests := []struct {
 		name      string
 		validator *ethpb.Validator
-		epoch     uint64
+		epoch     types.Epoch
 		slashable bool
 	}{
 		{
 			name: "Unset withdrawable, slashable",
 			validator: &ethpb.Validator{
-				WithdrawableEpoch: params.BeaconConfig().FarFutureEpoch,
+				WithdrawableEpoch: params.BeaconConfig().FarFutureEpoch.Uint64(),
 			},
 			epoch:     0,
 			slashable: true,
@@ -162,7 +164,7 @@ func TestIsSlashableValidatorUsingTrie_OK(t *testing.T) {
 			name: "inactive, not slashable",
 			validator: &ethpb.Validator{
 				ActivationEpoch:   5,
-				WithdrawableEpoch: params.BeaconConfig().FarFutureEpoch,
+				WithdrawableEpoch: params.BeaconConfig().FarFutureEpoch.Uint64(),
 			},
 			epoch:     2,
 			slashable: false,
@@ -179,7 +181,7 @@ func TestIsSlashableValidatorUsingTrie_OK(t *testing.T) {
 			name: "slashed and withdrawable, not slashable",
 			validator: &ethpb.Validator{
 				Slashed:           true,
-				ExitEpoch:         params.BeaconConfig().FarFutureEpoch,
+				ExitEpoch:         params.BeaconConfig().FarFutureEpoch.Uint64(),
 				WithdrawableEpoch: 1,
 			},
 			epoch:     2,
@@ -189,8 +191,8 @@ func TestIsSlashableValidatorUsingTrie_OK(t *testing.T) {
 			name: "slashed, not slashable",
 			validator: &ethpb.Validator{
 				Slashed:           true,
-				ExitEpoch:         params.BeaconConfig().FarFutureEpoch,
-				WithdrawableEpoch: params.BeaconConfig().FarFutureEpoch,
+				ExitEpoch:         params.BeaconConfig().FarFutureEpoch.Uint64(),
+				WithdrawableEpoch: params.BeaconConfig().FarFutureEpoch.Uint64(),
 			},
 			epoch:     2,
 			slashable: false,
@@ -200,8 +202,8 @@ func TestIsSlashableValidatorUsingTrie_OK(t *testing.T) {
 			validator: &ethpb.Validator{
 				Slashed:           true,
 				ActivationEpoch:   4,
-				ExitEpoch:         params.BeaconConfig().FarFutureEpoch,
-				WithdrawableEpoch: params.BeaconConfig().FarFutureEpoch,
+				ExitEpoch:         params.BeaconConfig().FarFutureEpoch.Uint64(),
+				WithdrawableEpoch: params.BeaconConfig().FarFutureEpoch.Uint64(),
 			},
 			epoch:     2,
 			slashable: false,
@@ -229,7 +231,7 @@ func TestBeaconProposerIndex_OK(t *testing.T) {
 	validators := make([]*ethpb.Validator, params.BeaconConfig().MinGenesisActiveValidatorCount/8)
 	for i := 0; i < len(validators); i++ {
 		validators[i] = &ethpb.Validator{
-			ExitEpoch: params.BeaconConfig().FarFutureEpoch,
+			ExitEpoch: params.BeaconConfig().FarFutureEpoch.Uint64(),
 		}
 	}
 
@@ -241,7 +243,7 @@ func TestBeaconProposerIndex_OK(t *testing.T) {
 	require.NoError(t, err)
 
 	tests := []struct {
-		slot  uint64
+		slot  types.Slot
 		index uint64
 	}{
 		{
@@ -279,7 +281,7 @@ func TestComputeProposerIndex_Compatibility(t *testing.T) {
 	validators := make([]*ethpb.Validator, params.BeaconConfig().MinGenesisActiveValidatorCount)
 	for i := 0; i < len(validators); i++ {
 		validators[i] = &ethpb.Validator{
-			ExitEpoch: params.BeaconConfig().FarFutureEpoch,
+			ExitEpoch: params.BeaconConfig().FarFutureEpoch.Uint64(),
 		}
 	}
 
@@ -295,7 +297,7 @@ func TestComputeProposerIndex_Compatibility(t *testing.T) {
 	var proposerIndices []uint64
 	seed, err := Seed(state, 0, params.BeaconConfig().DomainBeaconProposer)
 	require.NoError(t, err)
-	for i := uint64(0); i < params.BeaconConfig().SlotsPerEpoch; i++ {
+	for i := uint64(0); i < params.BeaconConfig().SlotsPerEpoch.Uint64(); i++ {
 		seedWithSlot := append(seed[:], bytesutil.Bytes8(i)...)
 		seedWithSlotHash := hashutil.Hash(seedWithSlot)
 		index, err := ComputeProposerIndex(state, indices, seedWithSlotHash)
@@ -306,7 +308,7 @@ func TestComputeProposerIndex_Compatibility(t *testing.T) {
 	var wantedProposerIndices []uint64
 	seed, err = Seed(state, 0, params.BeaconConfig().DomainBeaconProposer)
 	require.NoError(t, err)
-	for i := uint64(0); i < params.BeaconConfig().SlotsPerEpoch; i++ {
+	for i := uint64(0); i < params.BeaconConfig().SlotsPerEpoch.Uint64(); i++ {
 		seedWithSlot := append(seed[:], bytesutil.Bytes8(i)...)
 		seedWithSlotHash := hashutil.Hash(seedWithSlot)
 		index, err := computeProposerIndexWithValidators(state.Validators(), indices, seedWithSlotHash)
@@ -317,8 +319,9 @@ func TestComputeProposerIndex_Compatibility(t *testing.T) {
 }
 
 func TestDelayedActivationExitEpoch_OK(t *testing.T) {
-	epoch := uint64(9999)
+	epoch := types.Epoch(9999)
 	wanted := epoch + 1 + params.BeaconConfig().MaxSeedLookahead
+	// TODO make sure it correctly tests with custom epoch type
 	assert.Equal(t, wanted, ActivationExitEpoch(epoch))
 }
 
@@ -327,7 +330,7 @@ func TestActiveValidatorCount_Genesis(t *testing.T) {
 	validators := make([]*ethpb.Validator, c)
 	for i := 0; i < len(validators); i++ {
 		validators[i] = &ethpb.Validator{
-			ExitEpoch: params.BeaconConfig().FarFutureEpoch,
+			ExitEpoch: params.BeaconConfig().FarFutureEpoch.Uint64(),
 		}
 	}
 	beaconState, err := beaconstate.InitializeFromProto(&pb.BeaconState{
@@ -362,7 +365,7 @@ func TestChurnLimit_OK(t *testing.T) {
 		validators := make([]*ethpb.Validator, test.validatorCount)
 		for i := 0; i < len(validators); i++ {
 			validators[i] = &ethpb.Validator{
-				ExitEpoch: params.BeaconConfig().FarFutureEpoch,
+				ExitEpoch: params.BeaconConfig().FarFutureEpoch.Uint64(),
 			}
 		}
 
@@ -389,7 +392,7 @@ func TestDomain_OK(t *testing.T) {
 		},
 	}
 	tests := []struct {
-		epoch      uint64
+		epoch      types.Epoch
 		domainType [4]byte
 		result     []byte
 	}{
@@ -412,7 +415,7 @@ func TestActiveValidatorIndices(t *testing.T) {
 	farFutureEpoch := params.BeaconConfig().FarFutureEpoch
 	type args struct {
 		state *pb.BeaconState
-		epoch uint64
+		epoch types.Epoch
 	}
 	tests := []struct {
 		name      string
@@ -428,15 +431,15 @@ func TestActiveValidatorIndices(t *testing.T) {
 					Validators: []*ethpb.Validator{
 						{
 							ActivationEpoch: 0,
-							ExitEpoch:       farFutureEpoch,
+							ExitEpoch:       farFutureEpoch.Uint64(),
 						},
 						{
 							ActivationEpoch: 0,
-							ExitEpoch:       farFutureEpoch,
+							ExitEpoch:       farFutureEpoch.Uint64(),
 						},
 						{
 							ActivationEpoch: 0,
-							ExitEpoch:       farFutureEpoch,
+							ExitEpoch:       farFutureEpoch.Uint64(),
 						},
 					},
 				},
@@ -452,11 +455,11 @@ func TestActiveValidatorIndices(t *testing.T) {
 					Validators: []*ethpb.Validator{
 						{
 							ActivationEpoch: 0,
-							ExitEpoch:       farFutureEpoch,
+							ExitEpoch:       farFutureEpoch.Uint64(),
 						},
 						{
 							ActivationEpoch: 0,
-							ExitEpoch:       farFutureEpoch,
+							ExitEpoch:       farFutureEpoch.Uint64(),
 						},
 						{
 							ActivationEpoch: 0,
@@ -476,11 +479,11 @@ func TestActiveValidatorIndices(t *testing.T) {
 					Validators: []*ethpb.Validator{
 						{
 							ActivationEpoch: 0,
-							ExitEpoch:       farFutureEpoch,
+							ExitEpoch:       farFutureEpoch.Uint64(),
 						},
 						{
 							ActivationEpoch: 0,
-							ExitEpoch:       farFutureEpoch,
+							ExitEpoch:       farFutureEpoch.Uint64(),
 						},
 						{
 							ActivationEpoch: 0,
@@ -488,7 +491,7 @@ func TestActiveValidatorIndices(t *testing.T) {
 						},
 						{
 							ActivationEpoch: 0,
-							ExitEpoch:       farFutureEpoch,
+							ExitEpoch:       farFutureEpoch.Uint64(),
 						},
 					},
 				},
@@ -504,11 +507,11 @@ func TestActiveValidatorIndices(t *testing.T) {
 					Validators: []*ethpb.Validator{
 						{
 							ActivationEpoch: 0,
-							ExitEpoch:       farFutureEpoch,
+							ExitEpoch:       farFutureEpoch.Uint64(),
 						},
 						{
 							ActivationEpoch: 0,
-							ExitEpoch:       farFutureEpoch,
+							ExitEpoch:       farFutureEpoch.Uint64(),
 						},
 						{
 							ActivationEpoch: 0,
@@ -516,7 +519,7 @@ func TestActiveValidatorIndices(t *testing.T) {
 						},
 						{
 							ActivationEpoch: 0,
-							ExitEpoch:       farFutureEpoch,
+							ExitEpoch:       farFutureEpoch.Uint64(),
 						},
 					},
 				},
@@ -532,7 +535,7 @@ func TestActiveValidatorIndices(t *testing.T) {
 					Validators: []*ethpb.Validator{
 						{
 							ActivationEpoch: 0,
-							ExitEpoch:       farFutureEpoch,
+							ExitEpoch:       farFutureEpoch.Uint64(),
 						},
 						{
 							ActivationEpoch: 0,
@@ -540,11 +543,11 @@ func TestActiveValidatorIndices(t *testing.T) {
 						},
 						{
 							ActivationEpoch: 0,
-							ExitEpoch:       farFutureEpoch,
+							ExitEpoch:       farFutureEpoch.Uint64(),
 						},
 						{
 							ActivationEpoch: 0,
-							ExitEpoch:       farFutureEpoch,
+							ExitEpoch:       farFutureEpoch.Uint64(),
 						},
 					},
 				},
@@ -698,15 +701,30 @@ func TestIsEligibleForActivationQueue(t *testing.T) {
 		validator *ethpb.Validator
 		want      bool
 	}{
-		{"Eligible",
-			&ethpb.Validator{ActivationEligibilityEpoch: params.BeaconConfig().FarFutureEpoch, EffectiveBalance: params.BeaconConfig().MaxEffectiveBalance},
-			true},
-		{"Incorrect activation eligibility epoch",
-			&ethpb.Validator{ActivationEligibilityEpoch: 1, EffectiveBalance: params.BeaconConfig().MaxEffectiveBalance},
-			false},
-		{"Not enough balance",
-			&ethpb.Validator{ActivationEligibilityEpoch: params.BeaconConfig().FarFutureEpoch, EffectiveBalance: 1},
-			false},
+		{
+			"Eligible",
+			&ethpb.Validator{
+				ActivationEligibilityEpoch: params.BeaconConfig().FarFutureEpoch.Uint64(),
+				EffectiveBalance:           params.BeaconConfig().MaxEffectiveBalance,
+			},
+			true,
+		},
+		{
+			"Incorrect activation eligibility epoch",
+			&ethpb.Validator{
+				ActivationEligibilityEpoch: 1,
+				EffectiveBalance:           params.BeaconConfig().MaxEffectiveBalance,
+			},
+			false,
+		},
+		{
+			"Not enough balance",
+			&ethpb.Validator{
+				ActivationEligibilityEpoch: params.BeaconConfig().FarFutureEpoch.Uint64(),
+				EffectiveBalance:           1,
+			},
+			false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -722,18 +740,30 @@ func TestIsIsEligibleForActivation(t *testing.T) {
 		state     *pb.BeaconState
 		want      bool
 	}{
-		{"Eligible",
-			&ethpb.Validator{ActivationEligibilityEpoch: 1, ActivationEpoch: params.BeaconConfig().FarFutureEpoch},
+		{
+			"Eligible",
+			&ethpb.Validator{
+				ActivationEligibilityEpoch: 1,
+				ActivationEpoch:            params.BeaconConfig().FarFutureEpoch.Uint64(),
+			},
 			&pb.BeaconState{FinalizedCheckpoint: &ethpb.Checkpoint{Epoch: 2}},
-			true},
-		{"Not yet finalized",
-			&ethpb.Validator{ActivationEligibilityEpoch: 1, ActivationEpoch: params.BeaconConfig().FarFutureEpoch},
+			true,
+		},
+		{
+			"Not yet finalized",
+			&ethpb.Validator{
+				ActivationEligibilityEpoch: 1,
+				ActivationEpoch:            params.BeaconConfig().FarFutureEpoch.Uint64(),
+			},
 			&pb.BeaconState{FinalizedCheckpoint: &ethpb.Checkpoint{Root: make([]byte, 32)}},
-			false},
-		{"Incorrect activation epoch",
+			false,
+		},
+		{
+			"Incorrect activation epoch",
 			&ethpb.Validator{ActivationEligibilityEpoch: 1},
 			&pb.BeaconState{FinalizedCheckpoint: &ethpb.Checkpoint{Epoch: 2}},
-			false},
+			false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -37,19 +37,19 @@ func TestTotalActiveBalance_OK(t *testing.T) {
 	state, err := beaconstate.InitializeFromProto(&pb.BeaconState{Validators: []*ethpb.Validator{
 		{
 			EffectiveBalance: 32 * 1e9,
-			ExitEpoch:        params.BeaconConfig().FarFutureEpoch,
+			ExitEpoch:        params.BeaconConfig().FarFutureEpoch.Uint64(),
 		},
 		{
 			EffectiveBalance: 30 * 1e9,
-			ExitEpoch:        params.BeaconConfig().FarFutureEpoch,
+			ExitEpoch:        params.BeaconConfig().FarFutureEpoch.Uint64(),
 		},
 		{
 			EffectiveBalance: 30 * 1e9,
-			ExitEpoch:        params.BeaconConfig().FarFutureEpoch,
+			ExitEpoch:        params.BeaconConfig().FarFutureEpoch.Uint64(),
 		},
 		{
 			EffectiveBalance: 32 * 1e9,
-			ExitEpoch:        params.BeaconConfig().FarFutureEpoch,
+			ExitEpoch:        params.BeaconConfig().FarFutureEpoch.Uint64(),
 		},
 	}})
 	require.NoError(t, err)

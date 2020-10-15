@@ -14,13 +14,14 @@ import (
 	stateTrie "github.com/prysmaticlabs/prysm/beacon-chain/state"
 	"github.com/prysmaticlabs/prysm/shared/bytesutil"
 	"github.com/prysmaticlabs/prysm/shared/params"
+	"github.com/prysmaticlabs/prysm/shared/types"
 	"github.com/sirupsen/logrus"
 	"go.opencensus.io/trace"
 )
 
 // This defines the current chain service's view of head.
 type head struct {
-	slot  uint64                   // current head slot.
+	slot  types.Slot                   // current head slot.
 	root  [32]byte                 // current head root.
 	block *ethpb.SignedBeaconBlock // current head block.
 	state *stateTrie.BeaconState   // current head state.
@@ -61,13 +62,13 @@ func (s *Service) updateHead(ctx context.Context, balances []uint64) error {
 		if err != nil {
 			return err
 		}
-		s.forkChoiceStore = protoarray.New(j.Epoch, f.Epoch, bytesutil.ToBytes32(f.Root))
+		s.forkChoiceStore = protoarray.New(types.ToEpoch(j.Epoch), types.ToEpoch(f.Epoch), bytesutil.ToBytes32(f.Root))
 		if err := s.insertBlockToForkChoiceStore(ctx, jb.Block, headStartRoot, f, j); err != nil {
 			return err
 		}
 	}
 
-	headRoot, err := s.forkChoiceStore.Head(ctx, j.Epoch, headStartRoot, balances, f.Epoch)
+	headRoot, err := s.forkChoiceStore.Head(ctx, types.ToEpoch(j.Epoch), headStartRoot, balances, types.ToEpoch(f.Epoch))
 	if err != nil {
 		return err
 	}
@@ -129,7 +130,7 @@ func (s *Service) saveHead(ctx context.Context, headRoot [32]byte) error {
 		s.stateNotifier.StateFeed().Send(&feed.Event{
 			Type: statefeed.Reorg,
 			Data: &statefeed.ReorgData{
-				NewSlot: newHeadBlock.Block.Slot,
+				NewSlot: types.ToSlot(newHeadBlock.Block.Slot),
 				OldSlot: headSlot,
 			},
 		})
@@ -175,7 +176,7 @@ func (s *Service) setHead(root [32]byte, block *ethpb.SignedBeaconBlock, state *
 
 	// This does a full copy of the block and state.
 	s.head = &head{
-		slot:  block.Block.Slot,
+		slot:  types.ToSlot(block.Block.Slot),
 		root:  root,
 		block: stateTrie.CopySignedBeaconBlock(block),
 		state: state.Copy(),
@@ -191,7 +192,7 @@ func (s *Service) setHeadInitialSync(root [32]byte, block *ethpb.SignedBeaconBlo
 
 	// This does a full copy of the block only.
 	s.head = &head{
-		slot:  block.Block.Slot,
+		slot:  types.ToSlot(block.Block.Slot),
 		root:  root,
 		block: stateTrie.CopySignedBeaconBlock(block),
 		state: state,
@@ -200,7 +201,7 @@ func (s *Service) setHeadInitialSync(root [32]byte, block *ethpb.SignedBeaconBlo
 
 // This returns the head slot.
 // This is a lock free version.
-func (s *Service) headSlot() uint64 {
+func (s *Service) headSlot() types.Slot {
 	return s.head.slot
 }
 

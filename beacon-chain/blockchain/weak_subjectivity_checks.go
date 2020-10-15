@@ -23,7 +23,7 @@ func (s *Service) VerifyWeakSubjectivityRoot(ctx context.Context) error {
 	if s.wsVerified {
 		return nil
 	}
-	if s.wsEpoch > s.finalizedCheckpt.Epoch {
+	if s.wsEpoch.Uint64() > s.finalizedCheckpt.Epoch {
 		return nil
 	}
 

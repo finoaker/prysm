@@ -23,6 +23,7 @@ import (
 	"github.com/prysmaticlabs/prysm/shared/testutil/assert"
 	"github.com/prysmaticlabs/prysm/shared/testutil/require"
 	"github.com/prysmaticlabs/prysm/shared/timeutils"
+	"github.com/prysmaticlabs/prysm/shared/types"
 )
 
 func TestStore_OnBlock(t *testing.T) {
@@ -51,10 +52,10 @@ func TestStore_OnBlock(t *testing.T) {
 	assert.NoError(t, db.SaveBlock(ctx, random))
 	randomParentRoot, err := random.Block.HashTreeRoot()
 	assert.NoError(t, err)
-	require.NoError(t, service.beaconDB.SaveStateSummary(ctx, &pb.StateSummary{Slot: st.Slot(), Root: randomParentRoot[:]}))
+	require.NoError(t, service.beaconDB.SaveStateSummary(ctx, &pb.StateSummary{Slot: st.Slot().Uint64(), Root: randomParentRoot[:]}))
 	require.NoError(t, service.beaconDB.SaveState(ctx, st.Copy(), randomParentRoot))
 	randomParentRoot2 := roots[1]
-	require.NoError(t, service.beaconDB.SaveStateSummary(ctx, &pb.StateSummary{Slot: st.Slot(), Root: randomParentRoot2}))
+	require.NoError(t, service.beaconDB.SaveStateSummary(ctx, &pb.StateSummary{Slot: st.Slot().Uint64(), Root: randomParentRoot2}))
 	require.NoError(t, service.beaconDB.SaveState(ctx, st.Copy(), bytesutil.ToBytes32(randomParentRoot2)))
 
 	tests := []struct {
@@ -75,7 +76,7 @@ func TestStore_OnBlock(t *testing.T) {
 			blk: func() *ethpb.SignedBeaconBlock {
 				b := testutil.NewBeaconBlock()
 				b.Block.ParentRoot = randomParentRoot2
-				b.Block.Slot = params.BeaconConfig().FarFutureEpoch
+				b.Block.Slot = params.BeaconConfig().FarFutureEpoch.Uint64()
 				return b
 			}(),
 			s:             st.Copy(),
@@ -150,7 +151,7 @@ func TestStore_OnBlockBatch(t *testing.T) {
 	var blkRoots [][32]byte
 	var firstState *stateTrie.BeaconState
 	for i := 1; i < 10; i++ {
-		b, err := testutil.GenerateFullBlock(bState, keys, testutil.DefaultBlockGenConfig(), uint64(i))
+		b, err := testutil.GenerateFullBlock(bState, keys, testutil.DefaultBlockGenConfig(), types.ToSlot(uint64(i)))
 		require.NoError(t, err)
 		bState, err = state.ExecuteStateTransition(ctx, bState, b)
 		require.NoError(t, err)
@@ -197,7 +198,7 @@ func TestRemoveStateSinceLastFinalized_EmptyStartSlot(t *testing.T) {
 	require.NoError(t, service.beaconDB.SaveBlock(ctx, newJustifiedBlk))
 	require.NoError(t, service.beaconDB.SaveBlock(ctx, lastJustifiedBlk))
 
-	diff := (params.BeaconConfig().SlotsPerEpoch - 1) * params.BeaconConfig().SecondsPerSlot
+	diff := (params.BeaconConfig().SlotsPerEpoch.Uint64() - 1) * params.BeaconConfig().SecondsPerSlot
 	service.genesisTime = time.Unix(time.Now().Unix()-int64(diff), 0)
 	service.justifiedCheckpt = &ethpb.Checkpoint{Root: lastJustifiedRoot[:]}
 	update, err = service.shouldUpdateCurrentJustified(ctx, &ethpb.Checkpoint{Root: newJustifiedRoot[:]})
@@ -225,7 +226,7 @@ func TestShouldUpdateJustified_ReturnFalse(t *testing.T) {
 	require.NoError(t, service.beaconDB.SaveBlock(ctx, newJustifiedBlk))
 	require.NoError(t, service.beaconDB.SaveBlock(ctx, lastJustifiedBlk))
 
-	diff := (params.BeaconConfig().SlotsPerEpoch - 1) * params.BeaconConfig().SecondsPerSlot
+	diff := (params.BeaconConfig().SlotsPerEpoch.Uint64() - 1) * params.BeaconConfig().SecondsPerSlot
 	service.genesisTime = time.Unix(time.Now().Unix()-int64(diff), 0)
 	service.justifiedCheckpt = &ethpb.Checkpoint{Root: lastJustifiedRoot[:]}
 
@@ -514,7 +515,7 @@ func TestCurrentSlot_HandlesOverflow(t *testing.T) {
 	svc := Service{genesisTime: timeutils.Now().Add(1 * time.Hour)}
 
 	slot := svc.CurrentSlot()
-	require.Equal(t, uint64(0), slot, "Unexpected slot")
+	require.Equal(t, types.Slot(0), slot, "Unexpected slot")
 }
 func TestAncestorByDB_CtxErr(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -598,7 +599,8 @@ func TestAncestor_CanUseForkchoice(t *testing.T) {
 		beaconBlock.Block.ParentRoot = bytesutil.PadTo(b.Block.ParentRoot, 32)
 		r, err := b.Block.HashTreeRoot()
 		require.NoError(t, err)
-		require.NoError(t, service.forkChoiceStore.ProcessBlock(context.Background(), b.Block.Slot, r, bytesutil.ToBytes32(b.Block.ParentRoot), [32]byte{}, 0, 0)) // Saves blocks to fork choice store.
+		require.NoError(t, service.forkChoiceStore.ProcessBlock(
+			context.Background(), types.ToSlot(b.Block.Slot), r, bytesutil.ToBytes32(b.Block.ParentRoot), [32]byte{}, 0, 0)) // Saves blocks to fork choice store.
 	}
 
 	r, err := service.ancestor(context.Background(), r200[:], 150)
@@ -756,7 +758,7 @@ func TestVerifyBlkDescendant(t *testing.T) {
 	type args struct {
 		parentRoot    [32]byte
 		finalizedRoot [32]byte
-		finalizedSlot uint64
+		finalizedSlot types.Slot
 	}
 	tests := []struct {
 		name      string

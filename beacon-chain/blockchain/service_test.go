@@ -264,7 +264,7 @@ func TestChainService_InitializeChainInfo(t *testing.T) {
 
 	finalizedSlot := params.BeaconConfig().SlotsPerEpoch*2 + 1
 	headBlock := testutil.NewBeaconBlock()
-	headBlock.Block.Slot = finalizedSlot
+	headBlock.Block.Slot = finalizedSlot.Uint64()
 	headBlock.Block.ParentRoot = bytesutil.PadTo(genesisRoot[:], 32)
 	headState := testutil.NewBeaconState()
 	require.NoError(t, headState.SetSlot(finalizedSlot))
@@ -274,7 +274,7 @@ func TestChainService_InitializeChainInfo(t *testing.T) {
 	require.NoError(t, db.SaveState(ctx, headState, headRoot))
 	require.NoError(t, db.SaveState(ctx, headState, genesisRoot))
 	require.NoError(t, db.SaveBlock(ctx, headBlock))
-	require.NoError(t, db.SaveFinalizedCheckpoint(ctx, &ethpb.Checkpoint{Epoch: helpers.SlotToEpoch(finalizedSlot), Root: headRoot[:]}))
+	require.NoError(t, db.SaveFinalizedCheckpoint(ctx, &ethpb.Checkpoint{Epoch: helpers.SlotToEpoch(finalizedSlot).Uint64(), Root: headRoot[:]}))
 	c := &Service{beaconDB: db, stateGen: stategen.New(db, sc)}
 	require.NoError(t, c.initializeChainInfo(ctx))
 	headBlk, err := c.HeadBlock(ctx)
@@ -283,7 +283,7 @@ func TestChainService_InitializeChainInfo(t *testing.T) {
 	s, err := c.HeadState(ctx)
 	require.NoError(t, err)
 	assert.DeepEqual(t, headState.InnerStateUnsafe(), s.InnerStateUnsafe(), "Head state incorrect")
-	assert.Equal(t, c.HeadSlot(), headBlock.Block.Slot, "Head slot incorrect")
+	assert.Equal(t, c.HeadSlot().Uint64(), headBlock.Block.Slot, "Head slot incorrect")
 	r, err := c.HeadRoot(context.Background())
 	require.NoError(t, err)
 	if !bytes.Equal(headRoot[:], r) {
@@ -304,7 +304,7 @@ func TestChainService_InitializeChainInfo_SetHeadAtGenesis(t *testing.T) {
 
 	finalizedSlot := params.BeaconConfig().SlotsPerEpoch*2 + 1
 	headBlock := testutil.NewBeaconBlock()
-	headBlock.Block.Slot = finalizedSlot
+	headBlock.Block.Slot = finalizedSlot.Uint64()
 	headBlock.Block.ParentRoot = bytesutil.PadTo(genesisRoot[:], 32)
 	headState := testutil.NewBeaconState()
 	require.NoError(t, headState.SetSlot(finalizedSlot))

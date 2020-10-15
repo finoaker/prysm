@@ -14,11 +14,12 @@ import (
 	"github.com/prysmaticlabs/prysm/shared/bytesutil"
 	"github.com/prysmaticlabs/prysm/shared/featureconfig"
 	"github.com/prysmaticlabs/prysm/shared/params"
+	"github.com/prysmaticlabs/prysm/shared/types"
 	"go.opencensus.io/trace"
 )
 
 // This defines size of the upper bound for initial sync block cache.
-var initialSyncBlockCacheSize = 2 * params.BeaconConfig().SlotsPerEpoch
+var initialSyncBlockCacheSize = 2 * params.BeaconConfig().SlotsPerEpoch.Uint64()
 
 // onBlock is called when a gossip block is received. It runs regular state transition on the block.
 // The block's signing root should be computed before calling this method to avoid redundant
@@ -101,7 +102,7 @@ func (s *Service) onBlock(ctx context.Context, signed *ethpb.SignedBeaconBlock, 
 	}
 
 	// Update finalized check point.
-	if postState.FinalizedCheckpointEpoch() > s.finalizedCheckpt.Epoch {
+	if postState.FinalizedCheckpointEpoch().Uint64() > s.finalizedCheckpt.Epoch {
 		if err := s.beaconDB.SaveBlocks(ctx, s.getInitSyncBlocks()); err != nil {
 			return err
 		}
@@ -171,7 +172,7 @@ func (s *Service) onBlockInitialSyncStateTransition(ctx context.Context, signed 
 	}
 
 	// Exit early if the pre state slot is higher than incoming block's slot.
-	if preState.Slot() >= signed.Block.Slot {
+	if preState.Slot().Uint64() >= signed.Block.Slot {
 		return nil
 	}
 
@@ -203,7 +204,7 @@ func (s *Service) onBlockInitialSyncStateTransition(ctx context.Context, signed 
 	}
 
 	// Update finalized check point. Prune the block cache and helper caches on every new finalized epoch.
-	if postState.FinalizedCheckpointEpoch() > s.finalizedCheckpt.Epoch {
+	if postState.FinalizedCheckpointEpoch().Uint64() > s.finalizedCheckpt.Epoch {
 		if err := s.updateFinalized(ctx, postState.FinalizedCheckpoint()); err != nil {
 			return err
 		}
@@ -352,12 +353,12 @@ func (s *Service) insertBlockAndAttestationsToForkChoiceStore(ctx context.Contex
 	}
 	// Feed in block's attestations to fork choice store.
 	for _, a := range blk.Body.Attestations {
-		committee, err := helpers.BeaconCommitteeFromState(state, a.Data.Slot, a.Data.CommitteeIndex)
+		committee, err := helpers.BeaconCommitteeFromState(state, types.ToSlot(a.Data.Slot), a.Data.CommitteeIndex)
 		if err != nil {
 			return err
 		}
 		indices := attestationutil.AttestingIndices(a.AggregationBits, committee)
-		s.forkChoiceStore.ProcessAttestation(ctx, indices, bytesutil.ToBytes32(a.Data.BeaconBlockRoot), a.Data.Target.Epoch)
+		s.forkChoiceStore.ProcessAttestation(ctx, indices, bytesutil.ToBytes32(a.Data.BeaconBlockRoot), types.ToEpoch(a.Data.Target.Epoch))
 	}
 	return nil
 }
@@ -369,9 +370,9 @@ func (s *Service) insertBlockToForkChoiceStore(ctx context.Context, blk *ethpb.B
 	}
 	// Feed in block to fork choice store.
 	if err := s.forkChoiceStore.ProcessBlock(ctx,
-		blk.Slot, root, bytesutil.ToBytes32(blk.ParentRoot), bytesutil.ToBytes32(blk.Body.Graffiti),
-		jCheckpoint.Epoch,
-		fCheckpoint.Epoch); err != nil {
+		types.ToSlot(blk.Slot), root, bytesutil.ToBytes32(blk.ParentRoot), bytesutil.ToBytes32(blk.Body.Graffiti),
+		types.ToEpoch(jCheckpoint.Epoch),
+		types.ToEpoch(fCheckpoint.Epoch)); err != nil {
 		return errors.Wrap(err, "could not process block for proto array fork choice")
 	}
 	return nil

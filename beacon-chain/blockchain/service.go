@@ -34,6 +34,7 @@ import (
 	"github.com/prysmaticlabs/prysm/shared/bytesutil"
 	"github.com/prysmaticlabs/prysm/shared/params"
 	"github.com/prysmaticlabs/prysm/shared/slotutil"
+	"github.com/prysmaticlabs/prysm/shared/types"
 	"go.opencensus.io/trace"
 )
 
@@ -61,7 +62,7 @@ type Service struct {
 	bestJustifiedCheckpt      *ethpb.Checkpoint
 	finalizedCheckpt          *ethpb.Checkpoint
 	prevFinalizedCheckpt      *ethpb.Checkpoint
-	nextEpochBoundarySlot     uint64
+	nextEpochBoundarySlot     types.Slot
 	initSyncState             map[[32]byte]*stateTrie.BeaconState
 	boundaryRoots             [][32]byte
 	checkpointState           *cache.CheckpointStateCache
@@ -75,7 +76,7 @@ type Service struct {
 	justifiedBalances         []uint64
 	justifiedBalancesLock     sync.RWMutex
 	checkPtInfoCache          *checkPtInfoCache
-	wsEpoch                   uint64
+	wsEpoch                   types.Epoch
 	wsRoot                    []byte
 	wsVerified                bool
 }
@@ -96,7 +97,7 @@ type Config struct {
 	OpsService        *attestations.Service
 	StateGen          *stategen.State
 	WspBlockRoot      []byte
-	WspEpoch          uint64
+	WspEpoch          types.Epoch
 }
 
 // NewService instantiates a new block service instance that will
@@ -396,12 +397,12 @@ func (s *Service) saveGenesisData(ctx context.Context, genesisState *stateTrie.B
 	s.prevFinalizedCheckpt = stateTrie.CopyCheckpoint(genesisCheckpoint)
 
 	if err := s.forkChoiceStore.ProcessBlock(ctx,
-		genesisBlk.Block.Slot,
+		types.ToSlot(genesisBlk.Block.Slot),
 		genesisBlkRoot,
 		params.BeaconConfig().ZeroHash,
 		[32]byte{},
-		genesisCheckpoint.Epoch,
-		genesisCheckpoint.Epoch); err != nil {
+		types.ToEpoch(genesisCheckpoint.Epoch),
+		types.ToEpoch(genesisCheckpoint.Epoch)); err != nil {
 		log.Fatalf("Could not process genesis block for fork choice: %v", err)
 	}
 
@@ -475,7 +476,11 @@ func (s *Service) initializeChainInfo(ctx context.Context) error {
 // This is called when a client starts from non-genesis slot. This passes last justified and finalized
 // information to fork choice service to initializes fork choice store.
 func (s *Service) resumeForkChoice(justifiedCheckpoint, finalizedCheckpoint *ethpb.Checkpoint) {
-	store := protoarray.New(justifiedCheckpoint.Epoch, finalizedCheckpoint.Epoch, bytesutil.ToBytes32(finalizedCheckpoint.Root))
+	store := protoarray.New(
+		types.ToEpoch(justifiedCheckpoint.Epoch),
+		types.ToEpoch(finalizedCheckpoint.Epoch),
+		bytesutil.ToBytes32(finalizedCheckpoint.Root),
+	)
 	s.forkChoiceStore = store
 }
 

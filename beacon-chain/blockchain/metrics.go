@@ -8,6 +8,7 @@ import (
 	stateTrie "github.com/prysmaticlabs/prysm/beacon-chain/state"
 	"github.com/prysmaticlabs/prysm/shared/bytesutil"
 	"github.com/prysmaticlabs/prysm/shared/params"
+	"github.com/prysmaticlabs/prysm/shared/types"
 )
 
 var (
@@ -115,7 +116,7 @@ var (
 )
 
 // reportSlotMetrics reports slot related metrics.
-func reportSlotMetrics(stateSlot, headSlot, clockSlot uint64, finalizedCheckpoint *ethpb.Checkpoint) {
+func reportSlotMetrics(stateSlot, headSlot, clockSlot types.Slot, finalizedCheckpoint *ethpb.Checkpoint) {
 	clockTimeSlot.Set(float64(clockSlot))
 	beaconSlot.Set(float64(stateSlot))
 	beaconHeadSlot.Set(float64(headSlot))
@@ -152,7 +153,7 @@ func reportEpochMetrics(state *stateTrie.BeaconState) {
 			continue
 		}
 		if validator.Slashed {
-			if currentEpoch < validator.ExitEpoch {
+			if currentEpoch.Uint64() < validator.ExitEpoch {
 				slashingInstances++
 				slashingBalance += bal
 				slashingEffectiveBalance += validator.EffectiveBalance
@@ -161,8 +162,8 @@ func reportEpochMetrics(state *stateTrie.BeaconState) {
 			}
 			continue
 		}
-		if validator.ExitEpoch != params.BeaconConfig().FarFutureEpoch {
-			if currentEpoch < validator.ExitEpoch {
+		if validator.ExitEpoch != params.BeaconConfig().FarFutureEpoch.Uint64() {
+			if currentEpoch.Uint64() < validator.ExitEpoch {
 				exitingInstances++
 				exitingBalance += bal
 				exitingEffectiveBalance += validator.EffectiveBalance
@@ -171,7 +172,7 @@ func reportEpochMetrics(state *stateTrie.BeaconState) {
 			}
 			continue
 		}
-		if currentEpoch < validator.ActivationEpoch {
+		if currentEpoch.Uint64() < validator.ActivationEpoch {
 			pendingInstances++
 			pendingBalance += bal
 			continue

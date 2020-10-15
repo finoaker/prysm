@@ -7,6 +7,7 @@ import (
 	ethpb "github.com/prysmaticlabs/ethereumapis/eth/v1alpha1"
 	"github.com/prysmaticlabs/prysm/beacon-chain/core/helpers"
 	"github.com/prysmaticlabs/prysm/shared/params"
+	"github.com/prysmaticlabs/prysm/shared/types"
 	"github.com/sirupsen/logrus"
 )
 
@@ -26,9 +27,9 @@ func logStateTransitionData(b *ethpb.BeaconBlock) {
 func logBlockSyncStatus(block *ethpb.BeaconBlock, blockRoot [32]byte, finalized *ethpb.Checkpoint) {
 	log.WithFields(logrus.Fields{
 		"slot":           block.Slot,
-		"slotInEpoch":    block.Slot % params.BeaconConfig().SlotsPerEpoch,
+		"slotInEpoch":    block.Slot % params.BeaconConfig().SlotsPerEpoch.Uint64(),
 		"block":          fmt.Sprintf("0x%s...", hex.EncodeToString(blockRoot[:])[:8]),
-		"epoch":          helpers.SlotToEpoch(block.Slot),
+		"epoch":          helpers.SlotToEpoch(types.ToSlot(block.Slot)),
 		"finalizedEpoch": finalized.Epoch,
 		"finalizedRoot":  fmt.Sprintf("0x%s...", hex.EncodeToString(finalized.Root)[:8]),
 	}).Info("Synced new block")

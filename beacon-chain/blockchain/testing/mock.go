@@ -23,6 +23,7 @@ import (
 	"github.com/prysmaticlabs/prysm/shared/bytesutil"
 	"github.com/prysmaticlabs/prysm/shared/event"
 	"github.com/prysmaticlabs/prysm/shared/params"
+	"github.com/prysmaticlabs/prysm/shared/types"
 	"github.com/sirupsen/logrus"
 )
 
@@ -148,7 +149,7 @@ func (ms *ChainService) ReceiveBlockInitialSync(ctx context.Context, block *ethp
 	if !bytes.Equal(ms.Root, block.Block.ParentRoot) {
 		return errors.Errorf("wanted %#x but got %#x", ms.Root, block.Block.ParentRoot)
 	}
-	if err := ms.State.SetSlot(block.Block.Slot); err != nil {
+	if err := ms.State.SetSlot(types.ToSlot(block.Block.Slot)); err != nil {
 		return err
 	}
 	ms.BlocksReceived = append(ms.BlocksReceived, block)
@@ -176,7 +177,7 @@ func (ms *ChainService) ReceiveBlockBatch(ctx context.Context, blks []*ethpb.Sig
 		if !bytes.Equal(ms.Root, block.Block.ParentRoot) {
 			return errors.Errorf("wanted %#x but got %#x", ms.Root, block.Block.ParentRoot)
 		}
-		if err := ms.State.SetSlot(block.Block.Slot); err != nil {
+		if err := ms.State.SetSlot(types.ToSlot(block.Block.Slot)); err != nil {
 			return err
 		}
 		ms.BlocksReceived = append(ms.BlocksReceived, block)
@@ -204,7 +205,7 @@ func (ms *ChainService) ReceiveBlock(ctx context.Context, block *ethpb.SignedBea
 	if !bytes.Equal(ms.Root, block.Block.ParentRoot) {
 		return errors.Errorf("wanted %#x but got %#x", ms.Root, block.Block.ParentRoot)
 	}
-	if err := ms.State.SetSlot(block.Block.Slot); err != nil {
+	if err := ms.State.SetSlot(types.ToSlot(block.Block.Slot)); err != nil {
 		return err
 	}
 	ms.BlocksReceived = append(ms.BlocksReceived, block)
@@ -224,7 +225,7 @@ func (ms *ChainService) ReceiveBlock(ctx context.Context, block *ethpb.SignedBea
 }
 
 // HeadSlot mocks HeadSlot method in chain service.
-func (ms *ChainService) HeadSlot() uint64 {
+func (ms *ChainService) HeadSlot() types.Slot {
 	if ms.State == nil {
 		return 0
 	}
@@ -285,7 +286,7 @@ func (ms *ChainService) AttestationPreState(_ context.Context, _ *ethpb.Attestat
 }
 
 // HeadValidatorsIndices mocks the same method in the chain service.
-func (ms *ChainService) HeadValidatorsIndices(_ context.Context, epoch uint64) ([]uint64, error) {
+func (ms *ChainService) HeadValidatorsIndices(_ context.Context, epoch types.Epoch) ([]uint64, error) {
 	if ms.State == nil {
 		return []uint64{}, nil
 	}
@@ -293,7 +294,7 @@ func (ms *ChainService) HeadValidatorsIndices(_ context.Context, epoch uint64) (
 }
 
 // HeadSeed mocks the same method in the chain service.
-func (ms *ChainService) HeadSeed(_ context.Context, epoch uint64) ([32]byte, error) {
+func (ms *ChainService) HeadSeed(_ context.Context, epoch types.Epoch) ([32]byte, error) {
 	return helpers.Seed(ms.State, epoch, params.BeaconConfig().DomainBeaconAttester)
 }
 
@@ -365,11 +366,11 @@ func (ms *ChainService) VerifyLmdFfgConsistency(_ context.Context, _ *ethpb.Atte
 func (ms *ChainService) AttestationCheckPtInfo(_ context.Context, att *ethpb.Attestation) (*pb.CheckPtInfo, error) {
 	f := ms.State.Fork()
 	g := bytesutil.ToBytes32(ms.State.GenesisValidatorRoot())
-	seed, err := helpers.Seed(ms.State, helpers.SlotToEpoch(att.Data.Slot), params.BeaconConfig().DomainBeaconAttester)
+	seed, err := helpers.Seed(ms.State, helpers.SlotToEpoch(types.ToSlot(att.Data.Slot)), params.BeaconConfig().DomainBeaconAttester)
 	if err != nil {
 		return nil, err
 	}
-	indices, err := helpers.ActiveValidatorIndices(ms.State, helpers.SlotToEpoch(att.Data.Slot))
+	indices, err := helpers.ActiveValidatorIndices(ms.State, helpers.SlotToEpoch(types.ToSlot(att.Data.Slot)))
 	if err != nil {
 		return nil, err
 	}

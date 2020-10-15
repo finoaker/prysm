@@ -14,6 +14,7 @@ import (
 	"github.com/prysmaticlabs/prysm/shared/featureconfig"
 	"github.com/prysmaticlabs/prysm/shared/params"
 	"github.com/prysmaticlabs/prysm/shared/timeutils"
+	"github.com/prysmaticlabs/prysm/shared/types"
 	"go.opencensus.io/trace"
 )
 
@@ -60,8 +61,9 @@ func (s *Service) onAttestation(ctx context.Context, a *ethpb.Attestation) ([]ui
 
 	tgt := stateTrie.CopyCheckpoint(a.Data.Target)
 
-	if helpers.SlotToEpoch(a.Data.Slot) != a.Data.Target.Epoch {
-		return nil, fmt.Errorf("data slot is not in the same epoch as target %d != %d", helpers.SlotToEpoch(a.Data.Slot), a.Data.Target.Epoch)
+	attSlot := types.ToSlot(a.Data.Slot)
+	if helpers.SlotToEpoch(attSlot).Uint64() != a.Data.Target.Epoch {
+		return nil, fmt.Errorf("data slot is not in the same epoch as target %d != %d", helpers.SlotToEpoch(attSlot), a.Data.Target.Epoch)
 	}
 
 	// Verify beacon node has seen the target block before.
@@ -80,13 +82,14 @@ func (s *Service) onAttestation(ctx context.Context, a *ethpb.Attestation) ([]ui
 		if err := s.verifyBeaconBlock(ctx, a.Data); err != nil {
 			return nil, errors.Wrap(err, "could not verify attestation beacon block")
 		}
-		if err := s.verifyLMDFFGConsistent(ctx, a.Data.Target.Epoch, a.Data.Target.Root, a.Data.BeaconBlockRoot); err != nil {
+		if err := s.verifyLMDFFGConsistent(ctx, types.ToEpoch(a.Data.Target.Epoch), a.Data.Target.Root, a.Data.BeaconBlockRoot); err != nil {
 			return nil, errors.Wrap(err, "could not verify attestation beacon block")
 		}
-		if err := helpers.VerifySlotTime(uint64(s.genesisTime.Unix()), a.Data.Slot+1, params.BeaconNetworkConfig().MaximumGossipClockDisparity); err != nil {
+		if err := helpers.VerifySlotTime(uint64(s.genesisTime.Unix()), types.ToSlot(a.Data.Slot+1),
+			params.BeaconNetworkConfig().MaximumGossipClockDisparity); err != nil {
 			return nil, err
 		}
-		committee, err := helpers.BeaconCommittee(c.ActiveIndices, bytesutil.ToBytes32(c.Seed), a.Data.Slot, a.Data.CommitteeIndex)
+		committee, err := helpers.BeaconCommittee(c.ActiveIndices, bytesutil.ToBytes32(c.Seed), types.ToSlot(a.Data.Slot), a.Data.CommitteeIndex)
 		if err != nil {
 			return nil, err
 		}
@@ -94,7 +97,7 @@ func (s *Service) onAttestation(ctx context.Context, a *ethpb.Attestation) ([]ui
 		if err := attestationutil.IsValidAttestationIndices(ctx, indexedAtt); err != nil {
 			return nil, err
 		}
-		domain, err := helpers.Domain(c.Fork, indexedAtt.Data.Target.Epoch, params.BeaconConfig().DomainBeaconAttester, c.GenesisRoot)
+		domain, err := helpers.Domain(c.Fork, types.ToEpoch(indexedAtt.Data.Target.Epoch), params.BeaconConfig().DomainBeaconAttester, c.GenesisRoot)
 		if err != nil {
 			return nil, err
 		}
@@ -111,7 +114,8 @@ func (s *Service) onAttestation(ctx context.Context, a *ethpb.Attestation) ([]ui
 		if err := attestationutil.VerifyIndexedAttestationSig(ctx, indexedAtt, pubkeys, domain); err != nil {
 			return nil, err
 		}
-		s.forkChoiceStore.ProcessAttestation(ctx, indexedAtt.AttestingIndices, bytesutil.ToBytes32(a.Data.BeaconBlockRoot), a.Data.Target.Epoch)
+		s.forkChoiceStore.ProcessAttestation(
+			ctx, indexedAtt.AttestingIndices, bytesutil.ToBytes32(a.Data.BeaconBlockRoot), types.ToEpoch(a.Data.Target.Epoch))
 
 		return indexedAtt.AttestingIndices, nil
 	}
@@ -136,12 +140,12 @@ func (s *Service) onAttestation(ctx context.Context, a *ethpb.Attestation) ([]ui
 	}
 
 	// Verify LMG GHOST and FFG votes are consistent with each other.
-	if err := s.verifyLMDFFGConsistent(ctx, a.Data.Target.Epoch, a.Data.Target.Root, a.Data.BeaconBlockRoot); err != nil {
+	if err := s.verifyLMDFFGConsistent(ctx, types.ToEpoch(a.Data.Target.Epoch), a.Data.Target.Root, a.Data.BeaconBlockRoot); err != nil {
 		return nil, errors.Wrap(err, "could not verify attestation beacon block")
 	}
 
 	// Verify attestations can only affect the fork choice of subsequent slots.
-	if err := helpers.VerifySlotTime(genesisTime, a.Data.Slot+1, params.BeaconNetworkConfig().MaximumGossipClockDisparity); err != nil {
+	if err := helpers.VerifySlotTime(genesisTime, types.ToSlot(a.Data.Slot+1), params.BeaconNetworkConfig().MaximumGossipClockDisparity); err != nil {
 		return nil, err
 	}
 
@@ -156,7 +160,8 @@ func (s *Service) onAttestation(ctx context.Context, a *ethpb.Attestation) ([]ui
 	}
 
 	// Update forkchoice store with the new attestation for updating weight.
-	s.forkChoiceStore.ProcessAttestation(ctx, indexedAtt.AttestingIndices, bytesutil.ToBytes32(a.Data.BeaconBlockRoot), a.Data.Target.Epoch)
+	s.forkChoiceStore.ProcessAttestation(
+		ctx, indexedAtt.AttestingIndices, bytesutil.ToBytes32(a.Data.BeaconBlockRoot), types.ToEpoch(a.Data.Target.Epoch))
 
 	return indexedAtt.AttestingIndices, nil
 }

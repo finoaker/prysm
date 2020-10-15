@@ -8,6 +8,7 @@ import (
 	testDB "github.com/prysmaticlabs/prysm/beacon-chain/db/testing"
 	"github.com/prysmaticlabs/prysm/shared/testutil"
 	"github.com/prysmaticlabs/prysm/shared/testutil/require"
+	"github.com/prysmaticlabs/prysm/shared/types"
 )
 
 func TestService_VerifyWeakSubjectivityRoot(t *testing.T) {
@@ -22,7 +23,7 @@ func TestService_VerifyWeakSubjectivityRoot(t *testing.T) {
 		wsVerified     bool
 		wantErr        bool
 		wsRoot         [32]byte
-		wsEpoch        uint64
+		wsEpoch        types.Epoch
 		finalizedEpoch uint64
 		errString      string
 		name           string

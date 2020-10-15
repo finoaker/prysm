@@ -19,6 +19,7 @@ import (
 	"github.com/prysmaticlabs/prysm/shared/testutil"
 	"github.com/prysmaticlabs/prysm/shared/testutil/assert"
 	"github.com/prysmaticlabs/prysm/shared/testutil/require"
+	"github.com/prysmaticlabs/prysm/shared/types"
 )
 
 func TestStore_OnAttestation(t *testing.T) {
@@ -74,7 +75,7 @@ func TestStore_OnAttestation(t *testing.T) {
 	}{
 		{
 			name:      "attestation's data slot not aligned with target vote",
-			a:         &ethpb.Attestation{Data: &ethpb.AttestationData{Slot: params.BeaconConfig().SlotsPerEpoch, Target: &ethpb.Checkpoint{Root: make([]byte, 32)}}},
+			a:         &ethpb.Attestation{Data: &ethpb.AttestationData{Slot: params.BeaconConfig().SlotsPerEpoch.Uint64(), Target: &ethpb.Checkpoint{Root: make([]byte, 32)}}},
 			wantedErr: "data slot is not in the same epoch as target 1 != 0",
 		},
 		{
@@ -89,7 +90,7 @@ func TestStore_OnAttestation(t *testing.T) {
 		},
 		{
 			name: "process attestation doesn't match current epoch",
-			a: &ethpb.Attestation{Data: &ethpb.AttestationData{Slot: 100 * params.BeaconConfig().SlotsPerEpoch, Target: &ethpb.Checkpoint{Epoch: 100,
+			a: &ethpb.Attestation{Data: &ethpb.AttestationData{Slot: 100 * params.BeaconConfig().SlotsPerEpoch.Uint64(), Target: &ethpb.Checkpoint{Epoch: 100,
 				Root: BlkWithStateBadAttRoot[:]}}},
 			wantedErr: "target epoch 100 does not match current epoch",
 		},
@@ -186,7 +187,7 @@ func TestStore_OnAttestationUsingCheckptCache(t *testing.T) {
 	}{
 		{
 			name:      "attestation's data slot not aligned with target vote",
-			a:         &ethpb.Attestation{Data: &ethpb.AttestationData{Slot: params.BeaconConfig().SlotsPerEpoch, Target: &ethpb.Checkpoint{Root: make([]byte, 32)}}},
+			a:         &ethpb.Attestation{Data: &ethpb.AttestationData{Slot: params.BeaconConfig().SlotsPerEpoch.Uint64(), Target: &ethpb.Checkpoint{Root: make([]byte, 32)}}},
 			wantedErr: "data slot is not in the same epoch as target 1 != 0",
 		},
 		{
@@ -201,7 +202,7 @@ func TestStore_OnAttestationUsingCheckptCache(t *testing.T) {
 		},
 		{
 			name: "process attestation doesn't match current epoch",
-			a: &ethpb.Attestation{Data: &ethpb.AttestationData{Slot: 100 * params.BeaconConfig().SlotsPerEpoch, Target: &ethpb.Checkpoint{Epoch: 100,
+			a: &ethpb.Attestation{Data: &ethpb.AttestationData{Slot: 100 * params.BeaconConfig().SlotsPerEpoch.Uint64(), Target: &ethpb.Checkpoint{Epoch: 100,
 				Root: BlkWithStateBadAttRoot[:]}}},
 			wantedErr: "target epoch 100 does not match current epoch",
 		},
@@ -330,7 +331,7 @@ func TestStore_UpdateCheckpointState(t *testing.T) {
 	require.NoError(t, service.beaconDB.SaveState(ctx, baseState, bytesutil.ToBytes32(checkpoint.Root)))
 	returned, err := service.getAttPreState(ctx, checkpoint)
 	require.NoError(t, err)
-	assert.Equal(t, returned.Slot(), checkpoint.Epoch*params.BeaconConfig().SlotsPerEpoch, "Incorrectly returned base state")
+	assert.Equal(t, returned.Slot(), params.BeaconConfig().SlotsPerEpoch.Mul(checkpoint.Epoch), "Incorrectly returned base state")
 
 	cached, err := service.checkpointState.StateByCheckpoint(checkpoint)
 	require.NoError(t, err)
@@ -341,7 +342,7 @@ func TestStore_UpdateCheckpointState(t *testing.T) {
 	require.NoError(t, service.beaconDB.SaveState(ctx, baseState, bytesutil.ToBytes32(newCheckpoint.Root)))
 	returned, err = service.getAttPreState(ctx, newCheckpoint)
 	require.NoError(t, err)
-	s, err := helpers.StartSlot(newCheckpoint.Epoch)
+	s, err := helpers.StartSlot(types.ToEpoch(newCheckpoint.Epoch))
 	require.NoError(t, err)
 	baseState, err = state.ProcessSlots(ctx, baseState, s)
 	require.NoError(t, err)
@@ -362,7 +363,7 @@ func TestAttEpoch_MatchPrevEpoch(t *testing.T) {
 	service, err := NewService(ctx, cfg)
 	require.NoError(t, err)
 
-	nowTime := params.BeaconConfig().SlotsPerEpoch * params.BeaconConfig().SecondsPerSlot
+	nowTime := params.BeaconConfig().SlotsPerEpoch.Uint64() * params.BeaconConfig().SecondsPerSlot
 	require.NoError(t, service.verifyAttTargetEpoch(ctx, 0, nowTime, &ethpb.Checkpoint{Root: make([]byte, 32)}))
 }
 
@@ -374,7 +375,7 @@ func TestAttEpoch_MatchCurrentEpoch(t *testing.T) {
 	service, err := NewService(ctx, cfg)
 	require.NoError(t, err)
 
-	nowTime := params.BeaconConfig().SlotsPerEpoch * params.BeaconConfig().SecondsPerSlot
+	nowTime := params.BeaconConfig().SlotsPerEpoch.Uint64() * params.BeaconConfig().SecondsPerSlot
 	require.NoError(t, service.verifyAttTargetEpoch(ctx, 0, nowTime, &ethpb.Checkpoint{Epoch: 1}))
 }
 
@@ -386,7 +387,7 @@ func TestAttEpoch_NotMatch(t *testing.T) {
 	service, err := NewService(ctx, cfg)
 	require.NoError(t, err)
 
-	nowTime := 2 * params.BeaconConfig().SlotsPerEpoch * params.BeaconConfig().SecondsPerSlot
+	nowTime := 2 * params.BeaconConfig().SlotsPerEpoch.Uint64() * params.BeaconConfig().SecondsPerSlot
 	err = service.verifyAttTargetEpoch(ctx, 0, nowTime, &ethpb.Checkpoint{Root: make([]byte, 32)})
 	assert.ErrorContains(t, "target epoch 0 does not match current epoch 2 or prev epoch 1", err)
 }

@@ -9,6 +9,7 @@ import (
 	statefeed "github.com/prysmaticlabs/prysm/beacon-chain/core/feed/state"
 	stateTrie "github.com/prysmaticlabs/prysm/beacon-chain/state"
 	"github.com/prysmaticlabs/prysm/shared/traceutil"
+	"github.com/prysmaticlabs/prysm/shared/types"
 	"github.com/sirupsen/logrus"
 	"go.opencensus.io/trace"
 )
@@ -47,7 +48,7 @@ func (s *Service) ReceiveBlock(ctx context.Context, block *ethpb.SignedBeaconBlo
 	s.stateNotifier.StateFeed().Send(&feed.Event{
 		Type: statefeed.BlockProcessed,
 		Data: &statefeed.BlockProcessedData{
-			Slot:      blockCopy.Block.Slot,
+			Slot:      types.ToSlot(blockCopy.Block.Slot),
 			BlockRoot: blockRoot,
 			Verified:  true,
 		},
@@ -59,7 +60,7 @@ func (s *Service) ReceiveBlock(ctx context.Context, block *ethpb.SignedBeaconBlo
 	}
 
 	// Reports on block and fork choice metrics.
-	reportSlotMetrics(blockCopy.Block.Slot, s.HeadSlot(), s.CurrentSlot(), s.finalizedCheckpt)
+	reportSlotMetrics(types.ToSlot(blockCopy.Block.Slot), s.HeadSlot(), s.CurrentSlot(), s.finalizedCheckpt)
 
 	// Log block sync status.
 	logBlockSyncStatus(blockCopy.Block, blockRoot, s.finalizedCheckpt)
@@ -88,14 +89,14 @@ func (s *Service) ReceiveBlockInitialSync(ctx context.Context, block *ethpb.Sign
 	s.stateNotifier.StateFeed().Send(&feed.Event{
 		Type: statefeed.BlockProcessed,
 		Data: &statefeed.BlockProcessedData{
-			Slot:      blockCopy.Block.Slot,
+			Slot:      types.ToSlot(blockCopy.Block.Slot),
 			BlockRoot: blockRoot,
 			Verified:  true,
 		},
 	})
 
 	// Reports on blockCopy and fork choice metrics.
-	reportSlotMetrics(blockCopy.Block.Slot, s.HeadSlot(), s.CurrentSlot(), s.finalizedCheckpt)
+	reportSlotMetrics(types.ToSlot(blockCopy.Block.Slot), s.HeadSlot(), s.CurrentSlot(), s.finalizedCheckpt)
 
 	// Log state transition data.
 	log.WithFields(logrus.Fields{
@@ -132,14 +133,14 @@ func (s *Service) ReceiveBlockBatch(ctx context.Context, blocks []*ethpb.SignedB
 		s.stateNotifier.StateFeed().Send(&feed.Event{
 			Type: statefeed.BlockProcessed,
 			Data: &statefeed.BlockProcessedData{
-				Slot:      blockCopy.Block.Slot,
+				Slot:      types.ToSlot(blockCopy.Block.Slot),
 				BlockRoot: blkRoots[i],
 				Verified:  true,
 			},
 		})
 
 		// Reports on blockCopy and fork choice metrics.
-		reportSlotMetrics(blockCopy.Block.Slot, s.HeadSlot(), s.CurrentSlot(), s.finalizedCheckpt)
+		reportSlotMetrics(types.ToSlot(blockCopy.Block.Slot), s.HeadSlot(), s.CurrentSlot(), s.finalizedCheckpt)
 	}
 
 	if err := s.VerifyWeakSubjectivityRoot(s.ctx); err != nil {

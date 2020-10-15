@@ -13,11 +13,12 @@ import (
 	"github.com/prysmaticlabs/prysm/shared/bytesutil"
 	"github.com/prysmaticlabs/prysm/shared/params"
 	"github.com/prysmaticlabs/prysm/shared/traceutil"
+	"github.com/prysmaticlabs/prysm/shared/types"
 	"go.opencensus.io/trace"
 )
 
 // CurrentSlot returns the current slot based on time.
-func (s *Service) CurrentSlot() uint64 {
+func (s *Service) CurrentSlot() types.Slot {
 	return helpers.CurrentSlot(uint64(s.genesisTime.Unix()))
 }
 
@@ -42,7 +43,7 @@ func (s *Service) getBlockPreState(ctx context.Context, b *ethpb.BeaconBlock) (*
 	}
 
 	// Verify block slot time is not from the future.
-	if err := helpers.VerifySlotTime(preState.GenesisTime(), b.Slot, params.BeaconNetworkConfig().MaximumGossipClockDisparity); err != nil {
+	if err := helpers.VerifySlotTime(preState.GenesisTime(), types.ToSlot(b.Slot), params.BeaconNetworkConfig().MaximumGossipClockDisparity); err != nil {
 		return nil, err
 	}
 
@@ -98,7 +99,7 @@ func (s *Service) VerifyBlkDescendant(ctx context.Context, root [32]byte) error 
 		return errors.New("nil finalized block")
 	}
 	finalizedBlk := finalizedBlkSigned.Block
-	bFinalizedRoot, err := s.ancestor(ctx, root[:], finalizedBlk.Slot)
+	bFinalizedRoot, err := s.ancestor(ctx, root[:], types.ToSlot(finalizedBlk.Slot))
 	if err != nil {
 		return errors.Wrap(err, "could not get finalized block root")
 	}
@@ -119,11 +120,11 @@ func (s *Service) VerifyBlkDescendant(ctx context.Context, root [32]byte) error 
 // verifyBlkFinalizedSlot validates input block is not less than or equal
 // to current finalized slot.
 func (s *Service) verifyBlkFinalizedSlot(b *ethpb.BeaconBlock) error {
-	finalizedSlot, err := helpers.StartSlot(s.finalizedCheckpt.Epoch)
+	finalizedSlot, err := helpers.StartSlot(types.ToEpoch(s.finalizedCheckpt.Epoch))
 	if err != nil {
 		return err
 	}
-	if finalizedSlot >= b.Slot {
+	if finalizedSlot.Uint64() >= b.Slot {
 		return fmt.Errorf("block is equal or earlier than finalized block, slot %d < slot %d", b.Slot, finalizedSlot)
 	}
 	return nil
@@ -153,11 +154,11 @@ func (s *Service) shouldUpdateCurrentJustified(ctx context.Context, newJustified
 	}
 
 	newJustifiedBlock := newJustifiedBlockSigned.Block
-	jSlot, err := helpers.StartSlot(s.justifiedCheckpt.Epoch)
+	jSlot, err := helpers.StartSlot(types.ToEpoch(s.justifiedCheckpt.Epoch))
 	if err != nil {
 		return false, err
 	}
-	if newJustifiedBlock.Slot <= jSlot {
+	if newJustifiedBlock.Slot <= jSlot.Uint64() {
 		return false, nil
 	}
 	var justifiedBlockSigned *ethpb.SignedBeaconBlock
@@ -175,7 +176,7 @@ func (s *Service) shouldUpdateCurrentJustified(ctx context.Context, newJustified
 		return false, errors.New("nil justified block")
 	}
 	justifiedBlock := justifiedBlockSigned.Block
-	b, err := s.ancestor(ctx, justifiedRoot[:], justifiedBlock.Slot)
+	b, err := s.ancestor(ctx, justifiedRoot[:], types.ToSlot(justifiedBlock.Slot))
 	if err != nil {
 		return false, err
 	}
@@ -254,7 +255,7 @@ func (s *Service) updateFinalized(ctx context.Context, cp *ethpb.Checkpoint) err
 //    else:
 //        # root is older than queried slot, thus a skip slot. Return most recent root prior to slot
 //        return root
-func (s *Service) ancestor(ctx context.Context, root []byte, slot uint64) ([]byte, error) {
+func (s *Service) ancestor(ctx context.Context, root []byte, slot types.Slot) ([]byte, error) {
 	ctx, span := trace.StartSpan(ctx, "forkChoice.ancestor")
 	defer span.End()
 
@@ -275,7 +276,7 @@ func (s *Service) ancestor(ctx context.Context, root []byte, slot uint64) ([]byt
 }
 
 // This retrieves an ancestor root using fork choice store. The look up is looping through the a flat array structure.
-func (s *Service) ancestorByForkChoiceStore(ctx context.Context, r [32]byte, slot uint64) ([]byte, error) {
+func (s *Service) ancestorByForkChoiceStore(ctx context.Context, r [32]byte, slot types.Slot) ([]byte, error) {
 	if !s.forkChoiceStore.HasParent(r) {
 		return nil, errors.New("could not find root in fork choice store")
 	}
@@ -283,7 +284,7 @@ func (s *Service) ancestorByForkChoiceStore(ctx context.Context, r [32]byte, slo
 }
 
 // This retrieves an ancestor root using DB. The look up is recursively looking up DB. Slower than `ancestorByForkChoiceStore`.
-func (s *Service) ancestorByDB(ctx context.Context, r [32]byte, slot uint64) ([]byte, error) {
+func (s *Service) ancestorByDB(ctx context.Context, r [32]byte, slot types.Slot) ([]byte, error) {
 	// Stop recursive ancestry lookup if context is cancelled.
 	if ctx.Err() != nil {
 		return nil, ctx.Err()
@@ -302,7 +303,7 @@ func (s *Service) ancestorByDB(ctx context.Context, r [32]byte, slot uint64) ([]
 		return nil, errors.New("nil block")
 	}
 	b := signed.Block
-	if b.Slot == slot || b.Slot < slot {
+	if b.Slot == slot.Uint64() || b.Slot < slot.Uint64() {
 		return r[:], nil
 	}
 
@@ -333,7 +334,7 @@ func (s *Service) finalizedImpliesNewJustified(ctx context.Context, state *state
 		}
 
 		// Update justified if store justified is not in chain with finalized check point.
-		finalizedSlot, err := helpers.StartSlot(s.finalizedCheckpt.Epoch)
+		finalizedSlot, err := helpers.StartSlot(types.ToEpoch(s.finalizedCheckpt.Epoch))
 		if err != nil {
 			return err
 		}
@@ -361,11 +362,11 @@ func (s *Service) fillInForkChoiceMissingBlocks(ctx context.Context, blk *ethpb.
 	parentRoot := bytesutil.ToBytes32(blk.ParentRoot)
 	slot := blk.Slot
 	// Fork choice only matters from last finalized slot.
-	fSlot, err := helpers.StartSlot(s.finalizedCheckpt.Epoch)
+	fSlot, err := helpers.StartSlot(types.ToEpoch(s.finalizedCheckpt.Epoch))
 	if err != nil {
 		return err
 	}
-	higherThanFinalized := slot > fSlot
+	higherThanFinalized := slot > fSlot.Uint64()
 	// As long as parent node is not in fork choice store, and parent node is in DB.
 	for !s.forkChoiceStore.HasNode(parentRoot) && s.beaconDB.HasBlock(ctx, parentRoot) && higherThanFinalized {
 		b, err := s.beaconDB.Block(ctx, parentRoot)
@@ -376,7 +377,7 @@ func (s *Service) fillInForkChoiceMissingBlocks(ctx context.Context, blk *ethpb.
 		pendingNodes = append(pendingNodes, b.Block)
 		parentRoot = bytesutil.ToBytes32(b.Block.ParentRoot)
 		slot = b.Block.Slot
-		higherThanFinalized = slot > fSlot
+		higherThanFinalized = slot > fSlot.Uint64()
 	}
 
 	// Insert parent nodes to fork choice store in reverse order.
@@ -389,9 +390,9 @@ func (s *Service) fillInForkChoiceMissingBlocks(ctx context.Context, blk *ethpb.
 		}
 
 		if err := s.forkChoiceStore.ProcessBlock(ctx,
-			b.Slot, r, bytesutil.ToBytes32(b.ParentRoot), bytesutil.ToBytes32(b.Body.Graffiti),
-			jCheckpoint.Epoch,
-			fCheckpoint.Epoch); err != nil {
+			types.ToSlot(b.Slot), r, bytesutil.ToBytes32(b.ParentRoot), bytesutil.ToBytes32(b.Body.Graffiti),
+			types.ToEpoch(jCheckpoint.Epoch),
+			types.ToEpoch(fCheckpoint.Epoch)); err != nil {
 			return errors.Wrap(err, "could not process block for proto array fork choice")
 		}
 	}

@@ -11,6 +11,7 @@ import (
 	"github.com/prysmaticlabs/prysm/shared/bytesutil"
 	"github.com/prysmaticlabs/prysm/shared/featureconfig"
 	"github.com/prysmaticlabs/prysm/shared/params"
+	"github.com/prysmaticlabs/prysm/shared/types"
 )
 
 // EffectiveBalance returns the effective balance of the
@@ -24,38 +25,38 @@ func (v *ReadOnlyValidator) EffectiveBalance() uint64 {
 
 // ActivationEligibilityEpoch returns the activation eligibility epoch of the
 // read only validator.
-func (v *ReadOnlyValidator) ActivationEligibilityEpoch() uint64 {
+func (v *ReadOnlyValidator) ActivationEligibilityEpoch() types.Epoch {
 	if v == nil || v.validator == nil {
 		return 0
 	}
-	return v.validator.ActivationEligibilityEpoch
+	return types.Epoch(v.validator.ActivationEligibilityEpoch)
 }
 
 // ActivationEpoch returns the activation epoch of the
 // read only validator.
-func (v *ReadOnlyValidator) ActivationEpoch() uint64 {
+func (v *ReadOnlyValidator) ActivationEpoch() types.Epoch {
 	if v == nil || v.validator == nil {
 		return 0
 	}
-	return v.validator.ActivationEpoch
+	return types.Epoch(v.validator.ActivationEpoch)
 }
 
 // WithdrawableEpoch returns the withdrawable epoch of the
 // read only validator.
-func (v *ReadOnlyValidator) WithdrawableEpoch() uint64 {
+func (v *ReadOnlyValidator) WithdrawableEpoch() types.Epoch {
 	if v == nil || v.validator == nil {
 		return 0
 	}
-	return v.validator.WithdrawableEpoch
+	return types.Epoch(v.validator.WithdrawableEpoch)
 }
 
 // ExitEpoch returns the exit epoch of the
 // read only validator.
-func (v *ReadOnlyValidator) ExitEpoch() uint64 {
+func (v *ReadOnlyValidator) ExitEpoch() types.Epoch {
 	if v == nil || v.validator == nil {
 		return 0
 	}
-	return v.validator.ExitEpoch
+	return types.Epoch(v.validator.ExitEpoch)
 }
 
 // PublicKey returns the public key of the
@@ -114,7 +115,7 @@ func (b *BeaconState) CloneInnerState() *pbp2p.BeaconState {
 		return &pbp2p.BeaconState{
 			GenesisTime:                 b.genesisTime(),
 			GenesisValidatorsRoot:       b.genesisValidatorRoot(),
-			Slot:                        b.slot(),
+			Slot:                        b.slot().Uint64(),
 			Fork:                        b.fork(),
 			LatestBlockHeader:           b.latestBlockHeader(),
 			BlockRoots:                  b.blockRoots(),
@@ -138,7 +139,7 @@ func (b *BeaconState) CloneInnerState() *pbp2p.BeaconState {
 	return &pbp2p.BeaconState{
 		GenesisTime:                 b.GenesisTime(),
 		GenesisValidatorsRoot:       b.GenesisValidatorRoot(),
-		Slot:                        b.Slot(),
+		Slot:                        b.Slot().Uint64(),
 		Fork:                        b.Fork(),
 		LatestBlockHeader:           b.LatestBlockHeader(),
 		BlockRoots:                  b.BlockRoots(),
@@ -241,7 +242,7 @@ func (b *BeaconState) genesisUnixTime() time.Time {
 }
 
 // Slot of the current beacon chain state.
-func (b *BeaconState) Slot() uint64 {
+func (b *BeaconState) Slot() types.Slot {
 	if !b.HasInnerState() {
 		return 0
 	}
@@ -254,12 +255,12 @@ func (b *BeaconState) Slot() uint64 {
 
 // slot of the current beacon chain state.
 // This assumes that a lock is already held on BeaconState.
-func (b *BeaconState) slot() uint64 {
+func (b *BeaconState) slot() types.Slot {
 	if !b.HasInnerState() {
 		return 0
 	}
 
-	return b.state.Slot
+	return types.ToSlot(b.state.Slot)
 }
 
 // Fork version of the beacon chain.
@@ -1058,7 +1059,7 @@ func (b *BeaconState) finalizedCheckpoint() *ethpb.Checkpoint {
 }
 
 // FinalizedCheckpointEpoch returns the epoch value of the finalized checkpoint.
-func (b *BeaconState) FinalizedCheckpointEpoch() uint64 {
+func (b *BeaconState) FinalizedCheckpointEpoch() types.Epoch {
 	if !b.HasInnerState() {
 		return 0
 	}
@@ -1068,7 +1069,7 @@ func (b *BeaconState) FinalizedCheckpointEpoch() uint64 {
 	b.lock.RLock()
 	defer b.lock.RUnlock()
 
-	return b.state.FinalizedCheckpoint.Epoch
+	return types.ToEpoch(b.state.FinalizedCheckpoint.Epoch)
 }
 
 func (b *BeaconState) safeCopy2DByteSlice(input [][]byte) [][]byte {

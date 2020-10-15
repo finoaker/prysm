@@ -11,6 +11,7 @@ import (
 	pbp2p "github.com/prysmaticlabs/prysm/proto/beacon/p2p/v1"
 	"github.com/prysmaticlabs/prysm/shared/bytesutil"
 	"github.com/prysmaticlabs/prysm/shared/hashutil"
+	"github.com/prysmaticlabs/prysm/shared/types"
 )
 
 // For our setters, we have a field reference counter through
@@ -54,14 +55,14 @@ func (b *BeaconState) SetGenesisValidatorRoot(val []byte) error {
 }
 
 // SetSlot for the beacon state.
-func (b *BeaconState) SetSlot(val uint64) error {
+func (b *BeaconState) SetSlot(val types.Slot) error {
 	if !b.HasInnerState() {
 		return ErrNilInnerState
 	}
 	b.lock.Lock()
 	defer b.lock.Unlock()
 
-	b.state.Slot = val
+	b.state.Slot = val.Uint64()
 	b.markFieldAsDirty(slot)
 	return nil
 }

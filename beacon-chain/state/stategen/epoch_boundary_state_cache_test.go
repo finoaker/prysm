@@ -6,6 +6,7 @@ import (
 	"github.com/prysmaticlabs/prysm/shared/testutil"
 	"github.com/prysmaticlabs/prysm/shared/testutil/assert"
 	"github.com/prysmaticlabs/prysm/shared/testutil/require"
+	"github.com/prysmaticlabs/prysm/shared/types"
 )
 
 func TestEpochBoundaryStateCache_BadSlotKey(t *testing.T) {
@@ -51,7 +52,7 @@ func TestEpochBoundaryStateCache_CanTrim(t *testing.T) {
 	offSet := uint64(10)
 	for i := uint64(0); i < maxCacheSize+offSet; i++ {
 		s := testutil.NewBeaconState()
-		require.NoError(t, s.SetSlot(i))
+		require.NoError(t, s.SetSlot(types.ToSlot(i)))
 		r := [32]byte{byte(i)}
 		require.NoError(t, e.put(r, s))
 	}
@@ -61,7 +62,7 @@ func TestEpochBoundaryStateCache_CanTrim(t *testing.T) {
 	for _, l := range e.rootStateCache.List() {
 		i, ok := l.(*rootStateInfo)
 		require.Equal(t, true, ok, "Bad type assertion")
-		if i.state.Slot() < offSet {
+		if i.state.Slot().Uint64() < offSet {
 			t.Error("Did not trim the correct state")
 		}
 	}

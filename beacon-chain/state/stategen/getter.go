@@ -8,6 +8,7 @@ import (
 	pb "github.com/prysmaticlabs/prysm/proto/beacon/p2p/v1"
 	"github.com/prysmaticlabs/prysm/shared/bytesutil"
 	"github.com/prysmaticlabs/prysm/shared/params"
+	"github.com/prysmaticlabs/prysm/shared/types"
 	"go.opencensus.io/trace"
 )
 
@@ -81,15 +82,15 @@ func (s *State) StateByRootInitialSync(ctx context.Context, blockRoot [32]byte) 
 	if err != nil {
 		return nil, errors.Wrap(err, "could not get state summary")
 	}
-	if startState.Slot() == summary.Slot {
+	if startState.Slot().Uint64() == summary.Slot {
 		return startState, nil
 	}
 
-	blks, err := s.LoadBlocks(ctx, startState.Slot()+1, summary.Slot, bytesutil.ToBytes32(summary.Root))
+	blks, err := s.LoadBlocks(ctx, startState.Slot()+1, types.ToSlot(summary.Slot), bytesutil.ToBytes32(summary.Root))
 	if err != nil {
 		return nil, errors.Wrap(err, "could not load blocks")
 	}
-	startState, err = s.ReplayBlocks(ctx, startState, blks, summary.Slot)
+	startState, err = s.ReplayBlocks(ctx, startState, blks, types.ToSlot(summary.Slot))
 	if err != nil {
 		return nil, errors.Wrap(err, "could not replay blocks")
 	}
@@ -98,7 +99,7 @@ func (s *State) StateByRootInitialSync(ctx context.Context, blockRoot [32]byte) 
 }
 
 // StateBySlot retrieves the state using input slot.
-func (s *State) StateBySlot(ctx context.Context, slot uint64) (*state.BeaconState, error) {
+func (s *State) StateBySlot(ctx context.Context, slot types.Slot) (*state.BeaconState, error) {
 	ctx, span := trace.StartSpan(ctx, "stateGen.StateBySlot")
 	defer span.End()
 
@@ -173,7 +174,7 @@ func (s *State) loadStateByRoot(ctx context.Context, blockRoot [32]byte) (*state
 	if err != nil {
 		return nil, errors.Wrap(err, "could not get state summary")
 	}
-	targetSlot := summary.Slot
+	targetSlot := types.ToSlot(summary.Slot)
 
 	// Since the requested state is not in caches, start replaying using the last available ancestor state which is
 	// retrieved using input block's parent root.
@@ -196,7 +197,7 @@ func (s *State) loadStateByRoot(ctx context.Context, blockRoot [32]byte) (*state
 }
 
 // This loads a state by slot.
-func (s *State) loadStateBySlot(ctx context.Context, slot uint64) (*state.BeaconState, error) {
+func (s *State) loadStateBySlot(ctx context.Context, slot types.Slot) (*state.BeaconState, error) {
 	ctx, span := trace.StartSpan(ctx, "stateGen.loadStateBySlot")
 	defer span.End()
 

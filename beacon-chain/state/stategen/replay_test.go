@@ -16,6 +16,7 @@ import (
 	"github.com/prysmaticlabs/prysm/shared/testutil"
 	"github.com/prysmaticlabs/prysm/shared/testutil/assert"
 	"github.com/prysmaticlabs/prysm/shared/testutil/require"
+	"github.com/prysmaticlabs/prysm/shared/types"
 )
 
 func TestReplayBlocks_AllSkipSlots(t *testing.T) {
@@ -102,7 +103,7 @@ func TestReplayBlocks_LowerSlotBlock(t *testing.T) {
 	service := New(db, cache.NewStateSummaryCache())
 	targetSlot := beaconState.Slot()
 	b := testutil.NewBeaconBlock()
-	b.Block.Slot = beaconState.Slot() - 1
+	b.Block.Slot = beaconState.Slot().Uint64() - 1
 	newState, err := service.ReplayBlocks(context.Background(), beaconState, []*ethpb.SignedBeaconBlock{b}, targetSlot)
 	require.NoError(t, err)
 	assert.Equal(t, targetSlot, newState.Slot(), "Did not advance slots")
@@ -300,7 +301,7 @@ func TestLastSavedBlock_Genesis(t *testing.T) {
 
 	savedRoot, savedSlot, err := s.lastSavedBlock(ctx, 0)
 	require.NoError(t, err)
-	assert.Equal(t, uint64(0), savedSlot, "Did not save genesis slot")
+	assert.Equal(t, types.Slot(0), savedSlot, "Did not save genesis slot")
 	assert.Equal(t, savedRoot, savedRoot, "Did not save genesis root")
 }
 
@@ -313,13 +314,13 @@ func TestLastSavedBlock_CanGet(t *testing.T) {
 	}
 
 	b1 := testutil.NewBeaconBlock()
-	b1.Block.Slot = s.finalizedInfo.slot + 5
+	b1.Block.Slot = s.finalizedInfo.slot.Uint64() + 5
 	require.NoError(t, s.beaconDB.SaveBlock(ctx, b1))
 	b2 := testutil.NewBeaconBlock()
-	b2.Block.Slot = s.finalizedInfo.slot + 10
+	b2.Block.Slot = s.finalizedInfo.slot.Uint64() + 10
 	require.NoError(t, s.beaconDB.SaveBlock(ctx, b2))
 	b3 := testutil.NewBeaconBlock()
-	b3.Block.Slot = s.finalizedInfo.slot + 20
+	b3.Block.Slot = s.finalizedInfo.slot.Uint64() + 20
 	require.NoError(t, s.beaconDB.SaveBlock(ctx, b3))
 
 	savedRoot, savedSlot, err := s.lastSavedBlock(ctx, s.finalizedInfo.slot+100)
@@ -375,10 +376,10 @@ func TestLastSavedState_CanGet(t *testing.T) {
 	}
 
 	b1 := testutil.NewBeaconBlock()
-	b1.Block.Slot = s.finalizedInfo.slot + 5
+	b1.Block.Slot = s.finalizedInfo.slot.Uint64() + 5
 	require.NoError(t, s.beaconDB.SaveBlock(ctx, b1))
 	b2 := testutil.NewBeaconBlock()
-	b2.Block.Slot = s.finalizedInfo.slot + 10
+	b2.Block.Slot = s.finalizedInfo.slot.Uint64() + 10
 	require.NoError(t, s.beaconDB.SaveBlock(ctx, b2))
 	b2Root, err := b2.Block.HashTreeRoot()
 	require.NoError(t, err)
@@ -387,7 +388,7 @@ func TestLastSavedState_CanGet(t *testing.T) {
 
 	require.NoError(t, s.beaconDB.SaveState(ctx, st, b2Root))
 	b3 := testutil.NewBeaconBlock()
-	b3.Block.Slot = s.finalizedInfo.slot + 20
+	b3.Block.Slot = s.finalizedInfo.slot.Uint64() + 20
 	require.NoError(t, s.beaconDB.SaveBlock(ctx, b3))
 
 	savedState, err := s.lastSavedState(ctx, s.finalizedInfo.slot+100)

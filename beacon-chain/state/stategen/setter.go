@@ -72,7 +72,7 @@ func (s *State) saveStateByRoot(ctx context.Context, blockRoot [32]byte, state *
 
 	// On an intermediate slots, save the hot state summary.
 	s.stateSummaryCache.Put(blockRoot, &pb.StateSummary{
-		Slot: state.Slot(),
+		Slot: state.Slot().Uint64(),
 		Root: blockRoot[:],
 	})
 

@@ -10,6 +10,7 @@ import (
 	"github.com/prysmaticlabs/prysm/shared/testutil"
 	"github.com/prysmaticlabs/prysm/shared/testutil/assert"
 	"github.com/prysmaticlabs/prysm/shared/testutil/require"
+	"github.com/prysmaticlabs/prysm/shared/types"
 	logTest "github.com/sirupsen/logrus/hooks/test"
 )
 
@@ -38,7 +39,7 @@ func TestMigrateToCold_HappyPath(t *testing.T) {
 	service := New(db, cache.NewStateSummaryCache())
 	service.slotsPerArchivedPoint = 1
 	beaconState, _ := testutil.DeterministicGenesisState(t, 32)
-	stateSlot := uint64(1)
+	stateSlot := types.Slot(1)
 	require.NoError(t, beaconState.SetSlot(stateSlot))
 	b := testutil.NewBeaconBlock()
 	b.Block.Slot = 2
@@ -68,7 +69,7 @@ func TestMigrateToCold_RegeneratePath(t *testing.T) {
 	service := New(db, cache.NewStateSummaryCache())
 	service.slotsPerArchivedPoint = 1
 	beaconState, _ := testutil.DeterministicGenesisState(t, 32)
-	stateSlot := uint64(1)
+	stateSlot := types.Slot(1)
 	require.NoError(t, beaconState.SetSlot(stateSlot))
 	blk := testutil.NewBeaconBlock()
 	blk.Block.Slot = 2

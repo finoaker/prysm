@@ -7,6 +7,7 @@ import (
 
 	stateTrie "github.com/prysmaticlabs/prysm/beacon-chain/state"
 	"github.com/prysmaticlabs/prysm/shared/bytesutil"
+	"github.com/prysmaticlabs/prysm/shared/types"
 	"github.com/sirupsen/logrus"
 	"go.opencensus.io/trace"
 )
@@ -26,7 +27,7 @@ func (s *State) MigrateToCold(ctx context.Context, fRoot [32]byte) error {
 	if err != nil {
 		return err
 	}
-	fSlot := fBlock.Block.Slot
+	fSlot := types.ToSlot(fBlock.Block.Slot)
 	if oldFSlot > fSlot {
 		return nil
 	}

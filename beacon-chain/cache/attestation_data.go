@@ -142,7 +142,7 @@ func (c *AttestationCache) Put(_ context.Context, req *ethpb.AttestationDataRequ
 	if err := c.cache.AddIfNotPresent(data); err != nil {
 		return err
 	}
-	trim(c.cache, maxCacheSize)
+	trim(c.cache, maxCacheSize.Uint64())
 
 	attestationCacheSize.Set(float64(len(c.cache.List())))
 	return nil

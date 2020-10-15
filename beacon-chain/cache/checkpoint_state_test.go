@@ -11,6 +11,7 @@ import (
 	"github.com/prysmaticlabs/prysm/shared/params"
 	"github.com/prysmaticlabs/prysm/shared/testutil/assert"
 	"github.com/prysmaticlabs/prysm/shared/testutil/require"
+	"github.com/prysmaticlabs/prysm/shared/types"
 )
 
 func TestCheckpointStateCache_StateByCheckpoint(t *testing.T) {
@@ -60,7 +61,7 @@ func TestCheckpointStateCache_MaxSize(t *testing.T) {
 	require.NoError(t, err)
 
 	for i := uint64(0); i < uint64(maxCheckpointStateSize+100); i++ {
-		require.NoError(t, st.SetSlot(i))
+		require.NoError(t, st.SetSlot(types.ToSlot(i)))
 		require.NoError(t, c.AddCheckpointState(&ethpb.Checkpoint{Epoch: i, Root: make([]byte, 32)}, st))
 	}
 
